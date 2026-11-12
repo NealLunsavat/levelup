@@ -45,5 +45,37 @@ export const STEALTH_MIN_MINUTES = 120; // ...once you've logged 2 hours of it t
 export const MENTAL_RESET_BONUS = 1.05; // Tavern Rest: +5% XP the next day
 export const QUEST_GRACE_MIN = 60; // minutes after a window closes that you can still log it
 
-// The Daily Dungeon started tracking here. Quests that began earlier can't cost HP.
+// The Daily Dungeon started tracking here. Quests, stress and ambushes before this can't hurt you.
 export const DUNGEON_START = new Date('2026-11-12T17:00').getTime();
+
+// ---- Stress & the Cyberpsychosis debuff ----
+
+export const MAX_STRESS = 100;
+export const BEDTIME_CUTOFF = '21:00'; // in bed later than this adds stress
+export const STRESS_LATE_BEDTIME = 25;
+export const GOOD_SLEEP_HOURS = 7;
+export const STRESS_GOOD_SLEEP = -15; // in bed on time with 7+ hours
+export const RECOVERY_SLEEP_HOURS = 8; // an 8-hour sleep cures Cyberpsychosis
+export const REST_DAY_BREAKERS = ['workout', 'shift']; // a day with none of these is a rest day
+export const MAX_GRIND_DAYS = 6; // the 7th day in a row without a rest day starts adding stress
+export const STRESS_NO_REST_DAY = 20;
+export const STRESS_REST_DAY = -20;
+export const STRESS_PERFECT_NUTRITION = -10;
+export const CYBERPSYCHOSIS_XP = 0.8; // −20% to all XP while it's active
+export const SHOP_LOCK_HOURS = 24;
+
+// ---- Nutrition ----
+
+export const MACRO_TOLERANCE = 0.05; // within ±5% of your calorie target (and protein hit) is a perfect day
+export const PERFECT_NUTRITION_XP = 60;
+
+// ---- NASM Ambush ----
+
+export const AMBUSHES_PER_SHIFT = 2;
+export const AMBUSH_XP = 50; // INT
+export const AMBUSH_GOLD = 5;
+export const AMBUSH_HP_LOSS = 5;
+
+// ---- Career ----
+
+export const CAREER_QUEST_XP = 40;

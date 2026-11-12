@@ -79,6 +79,10 @@ function DungeonQuest({ q }) {
         ${open && html`<button class="btn small" onClick=${() => openLog({ kind: 'study', stealth: true })}>+ Log stealth study</button>`}
       </div>`}
 
+      ${q.id === 'it' && game.encounters.length > 0 && q.status !== 'locked' && html`<div class="tiny muted">
+        ⚔️ NASM Ambushes: ${game.encounters.map(e => e.result ? (e.result.correct ? '✅' : '💥') : e.at <= now && open ? '❗' : '·').join(' ')}
+        ${open ? ' · they appear when you open the app during your shift' : ''}
+      </div>`}
       ${open && html`<div class="dq-actions">
         ${q.objectives.map(o => html`<button class="btn small primary" onClick=${() => openLog({ kind: o.kind })}>
           ${KINDS[o.kind].icon} ${KINDS[o.kind].label}${o.minutes ? ` · ${o.logged}/${o.minutes} min` : ''}

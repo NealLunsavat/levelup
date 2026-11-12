@@ -1,20 +1,26 @@
 // Service worker: makes the app open instantly and work offline.
 // When you change any app file, bump CACHE so every device picks up the new version.
-const CACHE = 'levelup-v2';
+const CACHE = 'levelup-v3';
 const SHELL = [
   './',
   'index.html',
   'manifest.webmanifest',
   'css/app.css',
+  'js/ambush.js',
   'js/app.js',
+  'js/burnout.js',
+  'js/career.js',
   'js/components.js',
   'js/dungeon.js',
   'js/game.js',
   'js/logsheet.js',
+  'js/nasm.js',
   'js/pages.js',
   'js/questboard.js',
   'js/rpgMath.js',
   'js/settings.js',
+  'js/shop.js',
+  'js/skilltree.js',
   'js/store.js',
   'js/sync.js',
   'js/util.js',

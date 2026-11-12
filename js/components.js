@@ -48,10 +48,32 @@ export const Stat = ({ label, value, sub }) => html`<div class="stat">
 
 export const Empty = ({ children }) => html`<p class="empty">${children}</p>`;
 
+// Confetti burst for big moments (purchases, unlocks, level-ups).
+export function celebrate() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  const colors = ['#ffcc4d', '#8b7bff', '#4cd18a', '#ff6fb5', '#4fd1ff', '#ff7a45'];
+  for (let i = 0; i < 140; i++) {
+    const piece = document.createElement('i');
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.background = colors[i % colors.length];
+    piece.style.animationDelay = `${Math.random() * 0.5}s`;
+    piece.style.animationDuration = `${2 + Math.random() * 1.5}s`;
+    piece.style.setProperty('--x', `${Math.random() * 200 - 100}px`);
+    piece.style.setProperty('--r', `${Math.random() * 900}deg`);
+    box.appendChild(piece);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 4200);
+}
+
 export function PlayerCard({ compact }) {
   const { game, data } = useApp();
   const o = game.overall;
-  return html`<div class=${'player' + (compact ? ' compact' : '')}>
+  const stressColor = game.stress >= 75 ? 'var(--danger)' : game.stress >= 40 ? 'var(--gold)' : '#b49cff';
+  return html`<div class=${'player' + (compact ? ' compact' : '') + (game.cyberpsychosis ? ' psycho' : '')}>
+    ${!compact && html`<a class="player-gear" href="#/settings" aria-label="Settings">⚙️</a>`}
     <div class="player-row">
       <div class="avatar"><span class="lv-label">LV</span><span class="lv-num">${o.level}</span></div>
       <div class="player-info">
@@ -67,10 +89,15 @@ export function PlayerCard({ compact }) {
         <${Bar} pct=${game.hp / game.maxHp} color=${game.hp > 60 ? 'var(--good)' : game.hp > 30 ? 'var(--gold)' : 'var(--danger)'} />
         <span class="hp-num">${game.hp}/${game.maxHp}</span>
       </div>
-      <a class="gold" href="#/stats" title="Gold">🪙 ${fmtNum(game.gold)}</a>
+      <a class="gold" href="#/shop" title="Gold: spend it in the Loot Shop">🪙 ${fmtNum(game.gold)}</a>
+      <div class="hp">
+        <span class="hp-label">🧠 STRESS</span>
+        <${Bar} pct=${game.stress / game.maxStress} color=${stressColor} />
+        <span class="hp-num">${game.stress}%</span>
+      </div>
     </div>
     ${!compact && html`<div class="chips">
-      ${game.buffs.map(b => html`<span class="chip buff" title=${b.desc}>${b.icon} ${b.name} · ${b.desc}</span>`)}
+      ${game.buffs.map(b => html`<span class=${'chip ' + (b.bad ? 'debuff' : 'buff')} title=${b.desc}>${b.icon} ${b.name} · ${b.desc}</span>`)}
       <span class="chip fire">🔥 ${game.streak}-day streak</span>
       <span class="chip">⚡ +${fmtNum(game.todayXP)} XP today</span>
       <span class="chip">✨ ${fmtNum(game.total)} total XP</span>
@@ -128,6 +155,15 @@ export function describeLog(l, ctx) {
       break;
     case 'rest':
       parts.push(l.game, fmtMinutes(l.minutes));
+      break;
+    case 'sleep':
+      parts.push(`${l.hours}h`, l.bedtime && `in bed ${l.bedtime}`);
+      break;
+    case 'macros':
+      parts.push(l.calories && `${l.calories} kcal`, l.protein && `${l.protein}g protein`, l.carbs && `${l.carbs}g carbs`, l.fat && `${l.fat}g fat`);
+      break;
+    case 'career':
+      parts.push(l.title);
       break;
     case 'quiz':
       parts.push(`${l.score}%`, l.topic);

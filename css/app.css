@@ -220,6 +220,121 @@ b { font-weight: 700; }
 .toggle.on .toggle-dot { background: #4fa3ff; }
 .toggle.on .toggle-dot::after { transform: translateX(18px); }
 
+/* ---------- Stress & Cyberpsychosis ---------- */
+
+.player { position: relative; }
+.player-gear { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; font-size: 18px; opacity: 0.8; }
+.player-gear:hover { background: rgba(255, 255, 255, 0.08); opacity: 1; }
+.vitals { flex-wrap: wrap; }
+.vitals .hp + .gold + .hp { flex-basis: 100%; }
+.player.compact .vitals { flex-wrap: nowrap; }
+.player.compact .vitals .hp { flex: none; }
+.player.psycho { border-color: var(--danger); animation: glitch 2.4s infinite; background: radial-gradient(120% 140% at 0% 0%, #6a1f3a 0%, #2a1530 55%, var(--surface) 100%); }
+.chip.debuff { background: rgba(255, 93, 115, 0.2); color: #ffb3be; }
+.banner.danger { background: linear-gradient(135deg, rgba(255, 93, 115, 0.22), rgba(120, 30, 60, 0.25)); color: #ffc2cb; text-align: left; font-weight: 600; }
+.banner.subtle { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.good-text { color: var(--good); }
+.gold-text { color: var(--gold); }
+@keyframes glitch {
+  0%, 92%, 100% { box-shadow: 0 0 0 1px rgba(255, 93, 115, 0.4); transform: none; }
+  94% { box-shadow: -3px 0 0 rgba(79, 209, 255, 0.6), 3px 0 0 rgba(255, 93, 115, 0.6); transform: translateX(1px); }
+  96% { box-shadow: 3px 0 0 rgba(79, 209, 255, 0.6), -3px 0 0 rgba(255, 93, 115, 0.6); transform: translateX(-1px); }
+}
+
+/* ---------- NASM Ambush ---------- */
+
+.ambush-banner {
+  position: fixed; z-index: 30; left: 12px; right: 12px; bottom: calc(86px + var(--safe-b));
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px;
+  background: linear-gradient(135deg, #3a1d5c, #1f2440); border: 1px solid #ff5d73;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 93, 115, 0.3);
+  animation: ambush-in 0.5s cubic-bezier(.2, 1.4, .4, 1);
+}
+.ambush-icon { font-size: 28px; animation: shake 1.2s infinite; }
+@media (min-width: 900px) { .ambush-banner { left: auto; right: 24px; bottom: 24px; width: 380px; } }
+.ambush-overlay { z-index: 65; }
+.ambush-card { padding: 18px 16px calc(20px + var(--safe-b)); display: flex; flex-direction: column; gap: 14px; border-color: #ff5d73; }
+.ambush-head { display: flex; justify-content: space-between; align-items: center; }
+.ambush-kicker { font-weight: 900; letter-spacing: 0.14em; color: #ff8a9c; font-size: 13px; }
+.ambush-q { font-size: 19px; font-weight: 700; line-height: 1.35; }
+.ambush-options { display: flex; flex-direction: column; gap: 8px; }
+.ambush-option { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); text-align: left; font-size: 15px; font-weight: 600; }
+.ambush-option:not(:disabled):hover { border-color: var(--accent); }
+.ambush-option:disabled { cursor: default; opacity: 0.6; }
+.ambush-option.right { opacity: 1; border-color: var(--good); background: rgba(76, 209, 138, 0.15); }
+.ambush-option.wrong { opacity: 1; border-color: var(--danger); background: rgba(255, 93, 115, 0.15); }
+.ambush-letter { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-3); font-weight: 800; font-size: 13px; }
+.ambush-result { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; }
+.ambush-result.right { background: rgba(76, 209, 138, 0.12); color: #a6f0c8; }
+.ambush-result.wrong { background: rgba(255, 93, 115, 0.12); color: #ffc2cb; }
+.ambush-result p { color: var(--text); }
+@keyframes ambush-in { from { transform: translateY(40px) scale(0.9); opacity: 0; } }
+@keyframes shake { 0%, 80%, 100% { transform: none; } 85% { transform: rotate(-12deg); } 90% { transform: rotate(12deg); } 95% { transform: rotate(-6deg); } }
+
+/* ---------- Career ---------- */
+
+.career-layout { display: grid; gap: 16px; }
+@media (min-width: 700px) { .career-layout { grid-template-columns: minmax(260px, 1fr) 1fr; align-items: start; } }
+.tree-card { padding: 8px; }
+.tree { width: 100%; max-width: 380px; margin: 0 auto; display: block; }
+.tree .edge { fill: none; stroke: var(--surface-3); stroke-width: 4; stroke-dasharray: 2 8; stroke-linecap: round; }
+.tree .edge.open { stroke: var(--accent); stroke-dasharray: 6 8; animation: dash 1.2s linear infinite; }
+.tree .edge.lit { stroke: var(--gold); stroke-dasharray: none; filter: drop-shadow(0 0 6px rgba(255, 204, 77, 0.6)); }
+.tree .node { cursor: pointer; outline: none; }
+.tree .halo { fill: transparent; stroke: transparent; stroke-width: 2; }
+.tree .disc { fill: var(--surface-2); stroke: var(--surface-3); stroke-width: 3; transition: stroke 0.2s; }
+.tree .node-icon { font-size: 28px; }
+.tree .node-label { fill: var(--muted); font-size: 12px; font-weight: 800; }
+.tree .node.locked { opacity: 0.5; }
+.tree .node.available .disc { stroke: var(--accent); }
+.tree .node.ready .disc { stroke: var(--accent); fill: #2c2560; }
+.tree .node.ready .halo { stroke: var(--accent); animation: pulse 1.4s infinite; }
+.tree .node.unlocked .disc { fill: #3b2f0d; stroke: var(--gold); filter: drop-shadow(0 0 10px rgba(255, 204, 77, 0.55)); }
+.tree .node.unlocked .node-label { fill: var(--gold); }
+.tree .node.selected .halo { stroke: #fff; stroke-dasharray: 4 5; }
+.tree .node:focus-visible .halo { stroke: #fff; }
+@keyframes dash { to { stroke-dashoffset: -28; } }
+.node-detail-head { display: flex; align-items: center; gap: 14px; }
+.node-detail-icon { font-size: 40px; }
+.node-detail h2 { font-size: 22px; }
+.node-status { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.node-status.unlocked { color: var(--gold); }
+.node-status.ready { color: var(--accent); }
+.reqs { display: flex; flex-direction: column; gap: 6px; }
+.req { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-weight: 600; font-size: 15px; }
+.req-check { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); font-size: 13px; font-weight: 900; }
+.req.done .req-check { background: var(--good); color: #062b17; }
+.unlocks { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line); }
+.unlock-btn { animation: pulse 1.4s infinite; }
+.milestone { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.milestone:first-of-type { border-top: 0; }
+.stepper { display: flex; align-items: center; gap: 12px; }
+.stepper .btn { width: 40px; padding: 0; font-size: 20px; }
+.pack + .pack { margin-top: 10px; }
+.pack-name { font-weight: 800; font-size: 14px; margin-bottom: 4px; color: var(--muted); }
+
+/* ---------- Loot Shop ---------- */
+
+.shop-wallet { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px; border-radius: var(--radius); background: radial-gradient(120% 140% at 0% 0%, #5a4410 0%, #2a2214 55%, var(--surface) 100%); border: 1px solid #6b5420; }
+.wallet-gold { font-size: 34px; font-weight: 900; color: var(--gold); }
+.wallet-rate { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.loot-list { display: flex; flex-direction: column; gap: 10px; }
+.loot { display: flex; gap: 12px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.loot.affordable { border-color: rgba(255, 204, 77, 0.6); box-shadow: 0 0 18px rgba(255, 204, 77, 0.15); }
+.loot-icon { font-size: 32px; width: 48px; height: 48px; flex-shrink: 0; display: grid; place-items: center; border-radius: 12px; background: var(--surface-3); }
+.loot-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.loot-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.loot-name { font-weight: 800; }
+.loot-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.levelup-card.granted { background: radial-gradient(circle at 50% 30%, #6b4f12, #2a1f0a 70%); border-color: #c99a2e; }
+.granted-icon { position: relative; font-size: 64px; }
+.granted-name { position: relative; font-size: 22px; font-weight: 900; }
+.granted-text { position: relative; color: var(--muted); margin-bottom: 12px; }
+
+.confetti { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
+.confetti i { position: absolute; top: -16px; width: 8px; height: 14px; border-radius: 2px; animation-name: confetti-fall; animation-timing-function: cubic-bezier(.3, .6, .6, 1); animation-fill-mode: forwards; }
+@keyframes confetti-fall { to { transform: translate(var(--x), 105vh) rotate(var(--r)); } }
+
 /* ---------- Quests ---------- */
 
 .quest-list { display: flex; flex-direction: column; gap: 6px; }

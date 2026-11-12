@@ -1,7 +1,7 @@
 // The "log an activity" sheet: pick what you did, fill a short form, earn XP.
 import { html, useState } from '../vendor/preact-htm.js';
 import { KINDS, logXP } from './game.js';
-import { MENTAL_RESET_BONUS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER } from './rpgMath.js';
+import { BEDTIME_CUTOFF, RECOVERY_SLEEP_HOURS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER } from './rpgMath.js';
 import { put, remove } from './store.js';
 import { Sheet, useApp } from './components.js';
 import { todayStr } from './util.js';
@@ -32,7 +32,10 @@ const FIELDS = {
   workout: ['category', 'minutes', 'note'],
   pr: ['exercise', 'weight', 'reps'],
   meal: ['name', 'calories', 'protein'],
+  macros: ['calories', 'protein', 'carbs', 'fat'],
   rest: ['game', 'minutes'],
+  sleep: ['bedtime', 'hours'],
+  career: ['questId', 'title', 'pack'],
   activity: ['minutes', 'note'],
 };
 const REQUIRED = {
@@ -46,7 +49,10 @@ const REQUIRED = {
   workout: { minutes: 'minutes' },
   pr: { exercise: 'the exercise', weight: 'the weight' },
   meal: { name: 'what you ate' },
+  macros: { calories: 'calories' },
   rest: { minutes: 'minutes' },
+  sleep: { bedtime: 'your bedtime', hours: 'hours slept' },
+  career: {},
   activity: { minutes: 'minutes' },
 };
 
@@ -95,8 +101,8 @@ export function LogSheet({ initial, onClose }) {
   const it = ctx.game.dungeonToday.find(q => q.id === 'it');
   const stealthTotal = (it?.stealthMinutes ?? 0) + (Number(v.minutes) || 0) - (rec?.stealth ? Number(rec.minutes) || 0 : 0);
   const stealthBoost = kind === 'study' && v.stealth && it?.status === 'active' && stealthTotal >= STEALTH_MIN_MINUTES;
-  const buffBoost = v.date === ctx.game.today && ctx.game.buffs.length > 0;
-  const preview = Math.round(logXP({ ...v, kind }) * (stealthBoost ? STEALTH_MULTIPLIER : 1) * (buffBoost ? MENTAL_RESET_BONUS : 1));
+  const dayBoost = v.date === ctx.game.today ? ctx.game.multiplierNow : 1;
+  const preview = Math.round(logXP({ ...v, kind }) * (stealthBoost ? STEALTH_MULTIPLIER : 1) * dayBoost);
 
   function save(e) {
     e.preventDefault();
@@ -109,7 +115,7 @@ export function LogSheet({ initial, onClose }) {
     if (rec) out.id = rec.id;
     for (const k of FIELDS[kind]) if (v[k] !== '' && v[k] != null && v[k] !== false) out[k] = v[k];
     put(out);
-    ctx.toast(rec ? 'Saved' : `+${preview} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}`);
+    ctx.toast(rec ? 'Saved' : preview > 0 ? `+${preview} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}` : `${KINDS[kind].icon} ${label} logged`);
     onClose();
   }
 
@@ -166,6 +172,21 @@ export function LogSheet({ initial, onClose }) {
           <${Num} label="Reps" k="reps" ...${props} />
         </div>`}
       ${kind === 'meal' && html`<${MealFields} ...${props} />`}
+      ${kind === 'macros' && html`
+        <p class="muted small">Copy today's totals from MacroFactor. Within ±5% of your ${ctx.data.settings.calorieTarget} kcal target with ${ctx.data.settings.proteinTarget}g+ protein is a perfect day: bonus STR XP, and it cures Cyberpsychosis.</p>
+        <div class="row">
+          <${Num} label="Calories" k="calories" suffix="kcal" ...${props} />
+          <${Num} label="Protein" k="protein" suffix="g" ...${props} />
+        </div>
+        <div class="row">
+          <${Num} label="Carbs" k="carbs" suffix="g" ...${props} />
+          <${Num} label="Fat" k="fat" suffix="g" ...${props} />
+        </div>`}
+      ${kind === 'sleep' && html`
+        <p class="muted small">In bed after ${fmt12(BEDTIME_CUTOFF)} adds stress. ${RECOVERY_SLEEP_HOURS}+ hours cures Cyberpsychosis.</p>
+        <label class="field"><span>Bedtime</span><input type="time" value=${v.bedtime ?? ''} onInput=${e => set('bedtime', e.target.value)} /></label>
+        <${QuickNum} label="Hours slept" k="hours" options=${[6, 7, 8, 9]} ...${props} />`}
+      ${kind === 'career' && html`<p class="small">🎯 ${v.title}</p>`}
       ${kind === 'rest' && html`
         <${Choice} label="Game" options=${GAMES} value=${v.game} onChange=${x => set('game', x)} />
         <${Minutes} ...${props} />`}
@@ -178,7 +199,7 @@ export function LogSheet({ initial, onClose }) {
       ${error && html`<p class="error">${error}</p>`}
       <div class="form-actions">
         ${rec && html`<button type="button" class="btn ghost danger-text" onClick=${del}>Delete</button>`}
-        <button type="submit" class="btn primary grow">${rec ? 'Save' : `Claim +${preview} XP`}</button>
+        <button type="submit" class="btn primary grow">${rec ? 'Save' : preview > 0 ? `Claim +${preview} XP` : 'Log it'}</button>
       </div>
     </form>
   <//>`;
@@ -221,6 +242,20 @@ function MealFields({ f, set }) {
       <${Num} label="Calories" k="calories" suffix="kcal" f=${f} set=${set} />
       <${Num} label="Protein" k="protein" suffix="g" f=${f} set=${set} />
     </div>`;
+}
+
+const fmt12 = hhmm => new Date(`2000-01-01T${hhmm}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+function QuickNum({ label, k, options, f, set }) {
+  return html`<div class="field">
+    <span>${label}</span>
+    <div class="chip-row">
+      ${options.map(n => html`<button type="button" class=${'chip-btn' + (f[k] === n ? ' on' : '')} onClick=${() => set(k, n)}>${n}</button>`)}
+      <input class="mini-input" type="number" inputmode="decimal" step="any" min="0" placeholder="Other" aria-label=${label}
+        value=${options.includes(f[k]) ? '' : f[k] ?? ''}
+        onInput=${e => set(k, e.target.value === '' ? '' : Number(e.target.value))} />
+    </div>
+  </div>`;
 }
 
 function Minutes({ f, set }) {

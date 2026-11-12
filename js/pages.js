@@ -4,6 +4,8 @@ import { ACHIEVEMENTS, ATTR_OF_SKILL, BONUS } from './game.js';
 import { put, remove } from './store.js';
 import { AttributeGrid, Bar, Card, Empty, LogList, PlayerCard, Sheet, SkillGrid, Stat, useApp } from './components.js';
 import { QuestBoard } from './questboard.js';
+import { CareerQuests } from './skilltree.js';
+import { PERFECT_NUTRITION_XP } from './rpgMath.js';
 import { ART_FOCUS, Num, Text } from './logsheet.js';
 import { DAY_LETTERS, addDays, dayOfWeek, daysBetween, fmtDate, fmtMinutes, fmtMoney, fmtNum, groupBy, parseDate, sum } from './util.js';
 
@@ -15,8 +17,10 @@ export function Home() {
   const done = quests.filter(q => q.done).length;
   return html`<div class="page">
     <${PlayerCard} />
+    ${game.cyberpsychosis && html`<div class="banner danger">🧠 <b>CYBERPSYCHOSIS</b>: −20% XP${game.shopLockedUntil ? ' and the Loot Shop is locked' : ''}. Cure it with an 8-hour sleep or a perfect nutrition day.</div>`}
 
     <${QuestBoard} />
+    <${CareerQuests} home />
 
     <${Card} title="Side quests" right=${html`<span class="muted small">${done}/${quests.length} cleared</span>`}>
       ${quests.length ? html`<div class="quest-list">${quests.map(q => html`<${QuestRow} q=${q} skill=${skillMap[q.skill]} onClick=${() => openLog({ skill: q.skill })} />`)}</div>`
@@ -264,12 +268,16 @@ function Food({ logs }) {
   const { game, data, openLog } = useApp();
   const { calorieTarget, proteinTarget } = data.settings;
   const today = logs.filter(l => l.date === game.today && l.kind === 'meal');
-  const cal = sum(today, l => l.calories);
-  const protein = sum(today, l => l.protein);
+  const n = game.nutritionToday;
+  const cal = n.calories;
+  const protein = n.protein;
   const week = lastNDays(logs.filter(l => l.kind === 'meal'), game.today, 7);
   const weekDays = Object.keys(groupBy(week, l => l.date)).length || 1;
   return html`
-    <${Card} title="Today" right=${html`<button class="btn small" onClick=${() => openLog({ kind: 'meal' })}>+ Meal</button>`}>
+    <${Card} title="Today" right=${html`<div class="form-actions"><button class="btn small" onClick=${() => openLog({ kind: 'macros' })}>📊 MacroFactor</button><button class="btn small" onClick=${() => openLog({ kind: 'meal' })}>+ Meal</button></div>`}>
+      ${n.fromMacroFactor && html`<div class="tiny muted">📊 Using today's MacroFactor check-in</div>`}
+      ${n.perfect ? html`<div class="banner">🎯 Perfect nutrition day! +${PERFECT_NUTRITION_XP} STR, stress relief, and it cures Cyberpsychosis</div>`
+        : html`<div class="tiny muted">Land within ±5% of your calorie target with your protein hit for a perfect day (+${PERFECT_NUTRITION_XP} STR).</div>`}
       <div class="macro">
         <div class="macro-head"><span>Calories</span><b>${fmtNum(cal)} <span class="muted">/ ${fmtNum(calorieTarget)} kcal</span></b></div>
         <${Bar} pct=${calorieTarget ? cal / calorieTarget : 0} color=${cal > calorieTarget ? 'var(--danger)' : 'var(--gold)'} />
@@ -314,6 +322,7 @@ export function Stats() {
       <${Stat} label="Level" value=${game.overall.level} sub=${game.title} />
       <${Stat} label="Total XP" value=${fmtNum(game.total)} />
       <${Stat} label="HP" value=${`${game.hp}/${game.maxHp}`} />
+      <${Stat} label="Stress" value=${game.stress + '%'} sub=${game.cyberpsychosis ? '🧠 Cyberpsychosis!' : 'Cyberpsychosis at 100%'} />
       <${Stat} label="Gold" value=${'🪙 ' + fmtNum(game.gold)} sub=${`${fmtNum(game.goldEarned)} earned all time`} />
       <${Stat} label="Current streak" value=${game.streak + ' days'} />
       <${Stat} label="Best streak" value=${game.bestStreak + ' days'} />
@@ -323,6 +332,14 @@ export function Stats() {
       <div class="focus-list">
         ${game.attributes.map(a => html`<div class="focus-row"><span>${a.icon} ${a.name} <span class="tiny muted">Lv ${a.level}</span></span><${Bar} pct=${a.xp / maxAttr} color=${a.color} thin /><span class="small muted">${fmtNum(a.xp)}</span></div>`)}
       </div>
+    <//>
+    <${Card} title="🧠 Stress log">
+      <p class="muted small">In bed after 9:00 PM: +25. A 7th straight day without a rest day (no workout or gig shift): +20. Good sleep: −15. Rest day: −20. Perfect nutrition: −10. At 100% you get Cyberpsychosis.</p>
+      ${game.stressLog.length ? html`<div class="mini-table">${game.stressLog.map(e => html`<div class="mini-row">
+        <span>${e.result ? html`<b>${e.result}</b> · ` : ''}${e.reason}</span>
+        <span class="muted tiny">${new Date(e.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+        <b class=${e.delta > 0 ? 'danger-text' : 'good-text'}>${e.delta == null ? '' : e.delta > 0 ? `+${e.delta}` : e.delta}</b>
+      </div>`)}</div>` : html`<${Empty}>No stress yet. Log your sleep to start tracking it.<//>`}
     <//>
     <${Card} title="Achievements" right=${html`<span class="muted small">${unlocked.length}/${ACHIEVEMENTS.length}</span>`}>
       <div class="achievements">

@@ -9,8 +9,12 @@ A free web app that turns your day into XP. It runs on iPhone, iPad and Mac from
 - **Gig and IT shifts** (DoorDash, Spark Driver, LanceSoft), with $/hour
 - **NASM** exam countdown and quiz-score chart (70% is the passing line)
 - **Art** daily anime drawing prompt and a focus breakdown · **Content** shoots and edits
-- **Gym** workouts and a PR board · **Food** calories and protein vs. your targets
-- **Stats**: 14-day XP chart, attributes and 19 achievements
+- **Gym** workouts and a PR board · **Food** calories and protein, or a daily MacroFactor check-in
+- **Stress & Cyberpsychosis**: a burnout meter driven by your bedtime and rest days
+- **NASM Ambush**: surprise pop-quiz encounters during your IT shift
+- **Career Skill Tree**: Certified → The Floor → Book of Business → The 8-Week Program, each unlocking daily career quests
+- **Loot Shop**: spend Gold on real things from your wishlist (10 Gold = $1)
+- **Stats**: 14-day XP chart, attributes, stress log and 22 achievements
 
 ## The Daily Dungeon
 
@@ -32,8 +36,39 @@ Each quest only counts if you log it **during its window** (or up to 60 minutes 
 ## Levels and Gold
 
 - XP needed for each level is `100 × level^1.5`: 100 for level 1→2, 282 for 2→3, 3,162 for 10→11. Early levels fly by; later ones are a grind. Attributes level up on the same curve.
-- **Gold**: +1 per $1 earned driving and +1 per $1 of debt paid off. In the Loot Shop (coming next), **10 Gold = $1** of real-world spending, so a $50 hoodie costs 500 Gold.
+- **Gold**: +1 per $1 earned driving, +1 per $1 of debt paid off, +10 for the Iron Dungeon and +5 per NASM Ambush won.
 - All of these numbers live in `js/rpgMath.js`.
+
+## Stress and Cyberpsychosis
+
+| Event | Stress |
+|---|---|
+| Sleep logged with a bedtime after 9:00 PM | +25 |
+| 7th+ day in a row without a rest day (a rest day = no workout and no gig shift) | +20 per day |
+| In bed by 9:00 PM with 7+ hours of sleep | −15 |
+| A rest day | −20 |
+| A perfect nutrition day | −10 |
+
+At **100% stress you get Cyberpsychosis**: −20% on all XP you earn while it lasts, and the Loot Shop locks for 24 hours. The only cures are an **8-hour sleep** or a **perfect nutrition day** (calories within ±5% of your target with your protein goal hit, from meals or a MacroFactor check-in). A perfect nutrition day also earns +60 STR.
+
+## NASM Ambush
+
+Twice per IT shift, at random times, an encounter pops up when you open the app: one NASM CPT multiple-choice question (53 in the bank, focusing on ones you haven't answered correctly yet). **Right: +50 INT, +5 Gold. Wrong: −5 HP.** You can retreat and come back to it until the shift ends. Questions live in `js/nasm.js`.
+
+## Career Skill Tree
+
+| Node | Requires | Unlocks |
+|---|---|---|
+| 🎓 Certified | INT Level 10 + pass the NASM exam | Equinox Job Hunt quests |
+| 🏟️ The Floor | Certified + Equinox job secured | Floor Interaction dailies |
+| 📒 Book of Business | The Floor + 5 IRL clients | The Online Brand quests |
+| 🚀 The 8-Week Program | Book of Business + CHA Level 15 | High-ticket online sales quests |
+
+Mark the real-life milestones (exam passed, job secured, client count) on the Career page. Each unlocked node adds 4 daily career quests to your Home screen (+40 XP each). Nodes and quests live in `js/career.js`.
+
+## Loot Shop
+
+Add things you want IRL with their price; each costs **10 Gold per $1**. The Purchase button unlocks once you have the Gold. Buying deducts it, fires confetti and gives you permission to buy it for real. Mis-click? Undo it from the Trophy case to get the Gold back.
 
 ## How XP works
 
@@ -45,7 +80,10 @@ Each quest only counts if you log it **during its window** (or up to 60 minutes 
 | Content session (shoot / edit) | 2 per minute | CHA |
 | Workout | 30 + 2 per minute | STR |
 | Personal record | 75 | STR |
-| Meal logged | 10 | STR |
+| Meal or MacroFactor check-in | 10 | STR |
+| Perfect nutrition day | +60 | STR |
+| NASM Ambush won | +50 | INT |
+| Career quest | +40 | CRED or CHA |
 | Gig shift | 1 per $2 earned + 5 per hour | CRED |
 | IT shift | 10 per hour | CRED |
 | Debt payment | 1 per $2 paid | CRED |
@@ -131,6 +169,10 @@ Good to know:
 | `js/dungeon.js` | The Daily Dungeon schedule and time-gating |
 | `js/game.js` | Attributes, skills, XP rules, side quests, streaks, achievements; builds your character from your logs |
 | `js/questboard.js` | The Daily Dungeon quest board |
+| `js/burnout.js` | Stress, Cyberpsychosis and nutrition scoring |
+| `js/nasm.js`, `js/ambush.js` | NASM question bank, encounter timing, and the Ambush pop-up |
+| `js/career.js`, `js/skilltree.js` | Career nodes and quest packs, and the Career page |
+| `js/shop.js` | The Loot Shop |
 | `js/sync.js` | Optional Supabase sync |
 | `js/app.js` | Navigation, layout, level-up celebrations |
 | `js/pages.js`, `js/settings.js`, `js/logsheet.js`, `js/components.js` | The screens |
