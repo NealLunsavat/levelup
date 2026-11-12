@@ -74,7 +74,7 @@ function DungeonQuest({ q }) {
           <b>🥷 Stealth Mission</b>
           <span class=${'reward' + (q.stealthActive ? ' good' : '')}>${STEALTH_MULTIPLIER}× INT</span>
         </div>
-        <${Bar} pct=${q.stealthMinutes / STEALTH_MIN_MINUTES} color="#4fa3ff" thin />
+        <${Bar} pct=${q.stealthMinutes / STEALTH_MIN_MINUTES} color="var(--cyan)" thin />
         <div class="tiny muted">${q.stealthActive ? 'Active! Every stealth study session this shift earns 1.5× INT.' : `Study NASM on shift: ${q.stealthMinutes} / ${STEALTH_MIN_MINUTES} min to activate`}</div>
         ${open && html`<button class="btn small" onClick=${() => openLog({ kind: 'study', stealth: true })}>+ Log stealth study</button>`}
       </div>`}

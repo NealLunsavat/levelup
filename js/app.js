@@ -73,6 +73,36 @@ const NAV = [
 ];
 const TABS = NAV.filter(n => n.tab);
 
+// A short terminal-style boot screen, once per app launch. Tap to skip.
+function Boot({ name }) {
+  const [show, setShow] = useState(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+    try {
+      if (sessionStorage.getItem('levelup:booted')) return false;
+      sessionStorage.setItem('levelup:booted', '1');
+    } catch {}
+    return true;
+  });
+  useEffect(() => {
+    if (!show) return;
+    const id = setTimeout(() => setShow(false), 1950);
+    return () => clearTimeout(id);
+  }, []);
+  if (!show) return null;
+  const lines = [
+    ['> LEVELUP//OS v3.0'],
+    ['> NEURAL LINK .......', true],
+    ['> DAILY DUNGEON .....', true],
+    ['> GOLD LEDGER .......', true],
+    [`> WELCOME BACK, ${(name || 'PLAYER').toUpperCase()}`],
+  ];
+  return html`<div class="boot" onClick=${() => setShow(false)} aria-hidden="true">
+    <div class="boot-logo">LEVEL<span>UP</span></div>
+    ${lines.map(([text, ok]) => html`<div class="boot-line" style=${{ '--w': `${text.length + (ok ? 5 : 0)}ch` }}>${text}${ok && html` <span class="ok">[OK]</span>`}</div>`)}
+    <div class="boot-bar"></div>
+  </div>`;
+}
+
 function App() {
   const [version, setVersion] = useState(0);
   useEffect(() => subscribe(() => setVersion(v => v + 1)), []);
@@ -158,7 +188,7 @@ function App() {
       <main class="main">${page}</main>
       <nav class="tabbar">
         ${TABS.slice(0, 2).map(n => html`<a href=${n.href} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
-        <button class="tab-log" onClick=${() => ctx.openLog()} aria-label="Log activity">+</button>
+        <button class="tab-log" onClick=${() => ctx.openLog()} aria-label="Log activity"><span class="tab-log-hex">+</span></button>
         ${TABS.slice(2).map(n => html`<a href=${n.href} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
       </nav>
     </div>
@@ -173,6 +203,7 @@ function App() {
         <button class="btn primary">Let's go</button>
       </div>
     </div>`}
+    <${Boot} name=${data.settings.name} />
     <div class="toasts" aria-live="polite">${toasts.map(t => html`<div class="toast" key=${t.id}>${t.text}</div>`)}</div>
   <//>`;
 }

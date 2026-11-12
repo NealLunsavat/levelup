@@ -1,21 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6d5bff"/>
-      <stop offset="1" stop-color="#17133a"/>
-    </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffe58a"/>
-      <stop offset="1" stop-color="#ffaa1d"/>
-    </linearGradient>
     <linearGradient id="xp" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#7cf5c4"/>
-      <stop offset="1" stop-color="#4fd1ff"/>
+      <stop offset="0" stop-color="#0090ff"/>
+      <stop offset="1" stop-color="#00f0ff"/>
     </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity=".05" stroke-width="2"/>
+    </pattern>
   </defs>
-  <rect width="512" height="512" fill="url(#bg)"/>
-  <path d="M256 112 L380 236 L328 236 L256 164 L184 236 L132 236 Z" fill="url(#gold)"/>
-  <path d="M256 212 L380 336 L328 336 L256 264 L184 336 L132 336 Z" fill="url(#gold)" opacity=".7"/>
-  <rect x="136" y="366" width="240" height="28" rx="14" fill="#ffffff" opacity=".18"/>
-  <rect x="136" y="366" width="164" height="28" rx="14" fill="url(#xp)"/>
+  <rect width="512" height="512" fill="#07070d"/>
+  <rect width="512" height="512" fill="url(#grid)"/>
+  <path d="M96 140V96h44M416 140V96h-44M96 372v44h44M416 372v44h-44" fill="none" stroke="#00e5ff" stroke-width="10"/>
+  <path d="M256 118 L376 238 L326 238 L256 168 L186 238 L136 238 Z" fill="#f3e600"/>
+  <path d="M256 210 L376 330 L326 330 L256 260 L186 330 L136 330 Z" fill="#f3e600" opacity=".55"/>
+  <rect x="136" y="362" width="240" height="22" fill="#ffffff" opacity=".12"/>
+  <rect x="136" y="362" width="168" height="22" fill="url(#xp)"/>
+  <path d="M176 362v22M216 362v22M256 362v22M296 362v22M336 362v22" stroke="#07070d" stroke-width="5"/>
 </svg>

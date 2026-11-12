@@ -7,7 +7,7 @@ import { Choice, Num, Text } from './logsheet.js';
 import { DAY_LETTERS, fmtMoney, fmtNum } from './util.js';
 import * as sync from './sync.js';
 
-const COLORS = ['#9b8cff', '#4fd1ff', '#ffcc4d', '#ff6fb5', '#4cd18a', '#ff7a45', '#c084fc', '#f87171'];
+const COLORS = ['#f3e600', '#00e5ff', '#ff2e88', '#2bff88', '#b45cff', '#ff6b2c', '#ffb627', '#7dd3fc'];
 
 export function Settings() {
   const { data } = useApp();
@@ -49,8 +49,8 @@ function Quests() {
       <span class="days">${DAY_LETTERS.map((d, i) => html`<i class=${(q.days ?? []).includes(i) ? 'on' : ''}>${d}</i>`)}</span>
       <span class="muted tiny">Target: ${fmt(q)}</span>
     </button>`)}</div>` : html`<${Empty}>No quests yet.<//>`}
-    ${editing && html`<${QuestForm} quest=${editing} onClose=${() => setEditing(null)} />`}
-  <//>`;
+  <//>
+  ${editing && html`<${QuestForm} quest=${editing} onClose=${() => setEditing(null)} />`}`;
 }
 
 function QuestForm({ quest, onClose }) {

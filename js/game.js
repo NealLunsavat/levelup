@@ -13,23 +13,23 @@ import { evaluateCareer } from './career.js';
 
 // The five character attributes. `page` is the skill page each one links to.
 export const ATTRIBUTES = [
-  { id: 'str', name: 'STR', full: 'Physique', icon: '💪', color: '#ff7a45', page: 'gym' },
-  { id: 'int', name: 'INT', full: 'Knowledge', icon: '🧠', color: '#4fa3ff', page: 'study' },
-  { id: 'tech', name: 'TECH', full: 'Creative', icon: '🎨', color: '#ff6fb5', page: 'art' },
-  { id: 'cha', name: 'CHA', full: 'Brand', icon: '🎥', color: '#c084fc', page: 'content' },
-  { id: 'cred', name: 'CRED', full: 'Wealth', icon: '💰', color: '#f5c542', page: 'finance' },
+  { id: 'str', name: 'STR', full: 'Physique', icon: '💪', color: '#ff6b2c', page: 'gym' },
+  { id: 'int', name: 'INT', full: 'Knowledge', icon: '🧠', color: '#00e5ff', page: 'study' },
+  { id: 'tech', name: 'TECH', full: 'Creative', icon: '🎨', color: '#ff2e88', page: 'art' },
+  { id: 'cha', name: 'CHA', full: 'Brand', icon: '🎥', color: '#b45cff', page: 'content' },
+  { id: 'cred', name: 'CRED', full: 'Wealth', icon: '💰', color: '#ffb627', page: 'finance' },
 ];
 export const ATTR_OF_SKILL = { gym: 'str', food: 'str', study: 'int', art: 'tech', content: 'cha', finance: 'cred' };
 const ATTR_BY_ID = Object.fromEntries(ATTRIBUTES.map(a => [a.id, a]));
 
 // Skills are the activity pages; each feeds an attribute. Hidden skills don't show in the grid.
 export const SKILLS = [
-  { id: 'finance', name: 'Finance', icon: '💰', color: '#f5c542', blurb: 'Debt bosses, gig and IT shifts' },
-  { id: 'study', name: 'NASM', icon: '📚', color: '#4fa3ff', blurb: 'Certification study' },
-  { id: 'art', name: 'Art', icon: '🎨', color: '#ff6fb5', blurb: 'Procreate anime drawing' },
-  { id: 'content', name: 'Content', icon: '🎥', color: '#c084fc', blurb: 'Apple Log 2 shoots and DaVinci edits' },
-  { id: 'gym', name: 'Strength', icon: '🏋️', color: '#ff7a45', blurb: 'Workouts and PRs' },
-  { id: 'food', name: 'Nutrition', icon: '🥗', color: '#4cd18a', blurb: 'Meals and macros' },
+  { id: 'finance', name: 'Finance', icon: '💰', color: '#ffb627', blurb: 'Debt bosses, gig and IT shifts' },
+  { id: 'study', name: 'NASM', icon: '📚', color: '#00e5ff', blurb: 'Certification study' },
+  { id: 'art', name: 'Art', icon: '🎨', color: '#ff2e88', blurb: 'Procreate anime drawing' },
+  { id: 'content', name: 'Content', icon: '🎥', color: '#b45cff', blurb: 'Apple Log 2 shoots and DaVinci edits' },
+  { id: 'gym', name: 'Strength', icon: '🏋️', color: '#ff6b2c', blurb: 'Workouts and PRs' },
+  { id: 'food', name: 'Nutrition', icon: '🥗', color: '#2bff88', blurb: 'Meals and macros' },
   { id: 'rest', name: 'Rest', icon: '🛌', color: '#7dd3fc', blurb: 'Sleep, gaming and recovery', hidden: true },
 ];
 

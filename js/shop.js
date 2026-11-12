@@ -2,7 +2,7 @@
 import { html, useState } from '../vendor/preact-htm.js';
 import { GOLD_PER_IRL_DOLLAR, goldCost } from './rpgMath.js';
 import { put, remove } from './store.js';
-import { Bar, Card, Empty, Sheet, celebrate, useApp } from './components.js';
+import { Bar, Card, Count, Empty, Sheet, celebrate, useApp } from './components.js';
 import { Choice, Num, Text } from './logsheet.js';
 import { fmtMoney, fmtNum } from './util.js';
 
@@ -39,7 +39,7 @@ export function Shop() {
   return html`<div class="page">
     <h1 class="page-title">Loot Shop</h1>
     <div class="shop-wallet">
-      <div><div class="wallet-gold">🪙 ${fmtNum(game.gold)}</div><div class="muted small">Gold to spend · ${fmtNum(game.goldEarned)} earned all time</div></div>
+      <div><div class="wallet-gold">🪙 <${Count} value=${game.gold} /></div><div class="muted small">Gold to spend · ${fmtNum(game.goldEarned)} earned all time</div></div>
       <div class="wallet-rate"><b>${GOLD_PER_IRL_DOLLAR} Gold = $1</b><span class="tiny muted">Earn 1 Gold per $1 driving or paid toward debt</span></div>
     </div>
     ${locked && html`<div class="banner danger">🧠 Cyberpsychosis has locked the shop until ${new Date(locked).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}. Cure it early with an 8-hour sleep or a perfect nutrition day.</div>`}

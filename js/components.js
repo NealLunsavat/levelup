@@ -1,5 +1,5 @@
 // Shared UI pieces used across pages.
-import { html, createContext, useContext, useEffect } from '../vendor/preact-htm.js';
+import { html, createContext, useContext, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { KINDS, logXP } from './game.js';
 import { fmtDate, fmtMoney, fmtMinutes, fmtNum } from './util.js';
 
@@ -48,16 +48,44 @@ export const Stat = ({ label, value, sub }) => html`<div class="stat">
 
 export const Empty = ({ children }) => html`<p class="empty">${children}</p>`;
 
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// A number that counts up (or down) to its new value.
+export function Count({ value, format = fmtNum }) {
+  const [shown, setShown] = useState(() => (reduceMotion() ? value : 0));
+  const current = useRef(shown);
+  useEffect(() => {
+    const from = current.current;
+    if (from === value || reduceMotion()) {
+      current.current = value;
+      setShown(value);
+      return;
+    }
+    const start = performance.now();
+    let frame;
+    const step = now => {
+      // A frame's timestamp can be slightly earlier than `start`, so clamp to [0, 1].
+      const p = Math.max(0, Math.min(1, (now - start) / 900));
+      current.current = from + (value - from) * (1 - Math.pow(1 - p, 3));
+      setShown(current.current);
+      if (p < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return format(shown);
+}
+
 // Confetti burst for big moments (purchases, unlocks, level-ups).
 export function celebrate() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (reduceMotion()) return;
   const box = document.createElement('div');
   box.className = 'confetti';
-  const colors = ['#ffcc4d', '#8b7bff', '#4cd18a', '#ff6fb5', '#4fd1ff', '#ff7a45'];
+  const colors = ['#f3e600', '#00e5ff', '#ff2e88', '#2bff88', '#b45cff', '#ffffff'];
   for (let i = 0; i < 140; i++) {
     const piece = document.createElement('i');
     piece.style.left = `${Math.random() * 100}%`;
-    piece.style.background = colors[i % colors.length];
+    piece.style.background = piece.style.color = colors[i % colors.length];
     piece.style.animationDelay = `${Math.random() * 0.5}s`;
     piece.style.animationDuration = `${2 + Math.random() * 1.5}s`;
     piece.style.setProperty('--x', `${Math.random() * 200 - 100}px`);
@@ -71,7 +99,7 @@ export function celebrate() {
 export function PlayerCard({ compact }) {
   const { game, data } = useApp();
   const o = game.overall;
-  const stressColor = game.stress >= 75 ? 'var(--danger)' : game.stress >= 40 ? 'var(--gold)' : '#b49cff';
+  const stressColor = game.stress >= 75 ? 'var(--danger)' : game.stress >= 40 ? 'var(--gold)' : 'var(--cyan)';
   return html`<div class=${'player' + (compact ? ' compact' : '') + (game.cyberpsychosis ? ' psycho' : '')}>
     ${!compact && html`<a class="player-gear" href="#/settings" aria-label="Settings">⚙️</a>`}
     <div class="player-row">
@@ -80,27 +108,27 @@ export function PlayerCard({ compact }) {
         <div class="player-name">${data.settings.name || 'Player'}</div>
         <div class="player-title">${game.title}</div>
         <${Bar} pct=${o.pct} color="var(--xp)" />
-        <div class="xp-text">${fmtNum(o.into)} / ${fmtNum(o.need)} XP to Lv ${o.level + 1}</div>
+        <div class="xp-text"><${Count} value=${o.into} /> / ${fmtNum(o.need)} XP to Lv ${o.level + 1}</div>
       </div>
     </div>
     <div class="vitals">
       <div class="hp">
         <span class="hp-label">❤️ HP</span>
         <${Bar} pct=${game.hp / game.maxHp} color=${game.hp > 60 ? 'var(--good)' : game.hp > 30 ? 'var(--gold)' : 'var(--danger)'} />
-        <span class="hp-num">${game.hp}/${game.maxHp}</span>
+        <span class="hp-num"><${Count} value=${game.hp} />/${game.maxHp}</span>
       </div>
-      <a class="gold" href="#/shop" title="Gold: spend it in the Loot Shop">🪙 ${fmtNum(game.gold)}</a>
+      <a class="gold" href="#/shop" title="Gold: spend it in the Loot Shop">🪙 <${Count} value=${game.gold} /></a>
       <div class="hp">
         <span class="hp-label">🧠 STRESS</span>
         <${Bar} pct=${game.stress / game.maxStress} color=${stressColor} />
-        <span class="hp-num">${game.stress}%</span>
+        <span class="hp-num"><${Count} value=${game.stress} />%</span>
       </div>
     </div>
     ${!compact && html`<div class="chips">
       ${game.buffs.map(b => html`<span class=${'chip ' + (b.bad ? 'debuff' : 'buff')} title=${b.desc}>${b.icon} ${b.name} · ${b.desc}</span>`)}
       <span class="chip fire">🔥 ${game.streak}-day streak</span>
-      <span class="chip">⚡ +${fmtNum(game.todayXP)} XP today</span>
-      <span class="chip">✨ ${fmtNum(game.total)} total XP</span>
+      <span class="chip">⚡ +<${Count} value=${game.todayXP} /> XP today</span>
+      <span class="chip">✨ <${Count} value=${game.total} /> total XP</span>
     </div>`}
   </div>`;
 }
