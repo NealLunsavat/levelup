@@ -6,6 +6,8 @@ import { Card, Empty, Sheet, useApp } from './components.js';
 import { Choice, Num, Text } from './logsheet.js';
 import { DAY_LETTERS, fmtMoney, fmtNum } from './util.js';
 import * as sync from './sync.js';
+import { feedback, fxPrefs, setFxPref } from './fx.js';
+import { THEMES, autoTheme } from './theme.js';
 
 const COLORS = ['#f3e600', '#00e5ff', '#ff2e88', '#2bff88', '#b45cff', '#ff6b2c', '#ffb627', '#7dd3fc'];
 
@@ -27,11 +29,40 @@ export function Settings() {
       </div>
     <//>
 
+    <${DeviceCard} />
     <${Quests} />
     <${CustomSkills} />
     <${SyncCard} />
     <${Backup} />
   </div>`;
+}
+
+// Look and feel for this device only (not synced).
+function DeviceCard() {
+  const { themePref, setThemePref } = useApp();
+  const [prefs, setPrefs] = useState(fxPrefs());
+  const toggle = key => {
+    setFxPref(key, !prefs[key]);
+    setPrefs(fxPrefs());
+    if (!prefs[key]) feedback(key === 'sound' ? 'quest' : 'tick', 'double');
+  };
+  const options = [['auto', `🕒 Auto (now: ${THEMES[autoTheme()].name})`], ...Object.entries(THEMES).map(([id, t]) => [id, `${t.icon} ${t.name}`])];
+  return html`<${Card} title="This device">
+    <div class="field"><span>Theme</span>
+      <div class="chip-row">
+        ${options.map(([id, label]) => html`<button type="button" class=${'chip-btn' + (themePref === id ? ' on' : '')} onClick=${() => setThemePref(id)}>${label}</button>`)}
+      </div>
+    </div>
+    <p class="muted small">Auto follows your day: Iron Dungeon red from 5:00 AM, bright Daylight from 9:30 AM for driving, and Night City from 8:00 PM.</p>
+    <button type="button" class=${'toggle' + (prefs.sound ? ' on' : '')} onClick=${() => toggle('sound')} aria-pressed=${prefs.sound}>
+      <span class="toggle-dot"></span>
+      <span><b>🔊 Sound effects</b><br /><span class="tiny muted">Retro blips for logs, quests and level-ups. They follow your iPhone's silent switch and won't pause your music.</span></span>
+    </button>
+    <button type="button" class=${'toggle' + (prefs.haptics ? ' on' : '')} onClick=${() => toggle('haptics')} aria-pressed=${prefs.haptics}>
+      <span class="toggle-dot"></span>
+      <span><b>📳 Haptics</b><br /><span class="tiny muted">A tap you can feel when you log something (iPhone with iOS 18 or later).</span></span>
+    </button>
+  <//>`;
 }
 
 function Quests() {

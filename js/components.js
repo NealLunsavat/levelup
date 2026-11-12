@@ -230,3 +230,48 @@ export function LogList({ logs, limit = 10 }) {
     })}
   </div>`;
 }
+
+// The character "build": a radar chart of attribute levels, with your build from 4 weeks ago outlined.
+export function BuildRadar() {
+  const { game } = useApp();
+  const attrs = game.attributes;
+  const ago = game.attributesAgo;
+  const showAgo = ago.some(a => a.xp > 0);
+  const value = a => a.level - 1 + a.pct;
+  const max = Math.max(4, ...attrs.map(value), ...ago.map(value));
+  const size = 300;
+  const c = size / 2;
+  const R = 104;
+  const point = (i, r) => {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / attrs.length;
+    return [c + r * Math.cos(angle), c + r * Math.sin(angle)];
+  };
+  const shape = list => list.map((a, i) => point(i, R * Math.max(0.06, value(a) / max)).map(n => n.toFixed(1)).join(',')).join(' ');
+  const ring = f => attrs.map((_, i) => point(i, R * f).map(n => n.toFixed(1)).join(',')).join(' ');
+  return html`<div class="radar">
+    <svg viewBox=${`0 0 ${size} ${size}`} role="img" aria-label=${'Character build: ' + attrs.map(a => `${a.name} level ${a.level}`).join(', ')}>
+      ${[0.25, 0.5, 0.75, 1].map(f => html`<polygon class="radar-ring" points=${ring(f)} />`)}
+      ${attrs.map((_, i) => {
+        const [x, y] = point(i, R);
+        return html`<line class="radar-spoke" x1=${c} y1=${c} x2=${x} y2=${y} />`;
+      })}
+      ${showAgo && html`<polygon class="radar-ago" points=${shape(ago)} />`}
+      <polygon class="radar-now" points=${shape(attrs)} />
+      ${attrs.map((a, i) => {
+        const [x, y] = point(i, R * Math.max(0.06, value(a) / max));
+        return html`<circle class="radar-dot" cx=${x} cy=${y} r="4" style=${{ fill: a.color }} />`;
+      })}
+      ${attrs.map((a, i) => {
+        const [x, y] = point(i, R + 26);
+        return html`<g class="radar-label" transform=${`translate(${x} ${y})`}>
+          <text text-anchor="middle" y="-3" style=${{ fill: a.color }}>${a.name}</text>
+          <text text-anchor="middle" y="13" class="radar-lv">Lv ${a.level}</text>
+        </g>`;
+      })}
+    </svg>
+    <div class="radar-legend tiny muted">
+      <span><i class="key now"></i>Now</span>
+      ${showAgo ? html`<span><i class="key ago"></i>4 weeks ago</span>` : html`<span>Check back in a few weeks to see how your build changed</span>`}
+    </div>
+  </div>`;
+}

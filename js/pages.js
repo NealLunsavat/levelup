@@ -1,10 +1,11 @@
 // Home, skill pages and stats.
 import { html, useState } from '../vendor/preact-htm.js';
-import { ACHIEVEMENTS, ATTR_OF_SKILL, BONUS } from './game.js';
+import { ACHIEVEMENTS, ATTR_OF_SKILL, BONUS, KINDS } from './game.js';
 import { put, remove } from './store.js';
-import { AttributeGrid, Bar, Card, Empty, LogList, PlayerCard, Sheet, SkillGrid, Stat, useApp } from './components.js';
+import { AttributeGrid, Bar, BuildRadar, Card, Empty, LogList, PlayerCard, Sheet, SkillGrid, Stat, useApp } from './components.js';
 import { QuestBoard } from './questboard.js';
 import { CareerQuests } from './skilltree.js';
+import { haptic, play } from './fx.js';
 import { PERFECT_NUTRITION_XP } from './rpgMath.js';
 import { ART_FOCUS, Num, Text } from './logsheet.js';
 import { DAY_LETTERS, addDays, dayOfWeek, daysBetween, fmtDate, fmtMinutes, fmtMoney, fmtNum, groupBy, parseDate, sum } from './util.js';
@@ -19,6 +20,7 @@ export function Home() {
     <${PlayerCard} />
     ${game.cyberpsychosis && html`<div class="banner danger">🧠 <b>CYBERPSYCHOSIS</b>: −20% XP${game.shopLockedUntil ? ' and the Loot Shop is locked' : ''}. Cure it with an 8-hour sleep or a perfect nutrition day.</div>`}
 
+    <${QuickLog} />
     <${QuestBoard} />
     <${CareerQuests} home />
 
@@ -34,6 +36,18 @@ export function Home() {
     <${Card} title="Recent activity">
       <${LogList} logs=${data.logs} limit=${8} />
     <//>
+  </div>`;
+}
+
+// One-tap logging for the things you log most.
+const QUICK = [['shift', 'Shift'], ['study', 'Study'], ['workout', 'Workout'], ['meal', 'Meal'], ['sleep', 'Sleep']];
+
+function QuickLog() {
+  const { openLog } = useApp();
+  return html`<div class="quick-log" role="group" aria-label="Quick log">
+    ${QUICK.map(([kind, label]) => html`<button class="quick" onClick=${() => { haptic(); openLog({ kind }); }}>
+      <span class="quick-icon">${KINDS[kind].icon}</span><span>${label}</span>
+    </button>`)}
   </div>`;
 }
 
@@ -55,6 +69,7 @@ function QuestRow({ q, skill, onClick }) {
 export function SkillsPage() {
   return html`<div class="page">
     <h1 class="page-title">Skills</h1>
+    <${Card} title="Character build"><${BuildRadar} /><//>
     <${SkillGrid} />
     <p class="muted small">Want to track something else? Add your own skill in <a href="#/settings">Settings</a>.</p>
   </div>`;
@@ -143,6 +158,7 @@ function DebtForm({ debt, onClose }) {
     if (!f.name.trim() || !(f.balance > 0)) return setError('Give it a name and a starting balance.');
     put({ ...(debt.id ? { id: debt.id, createdAt: debt.createdAt } : { createdAt: Date.now() }), type: 'debt', name: f.name.trim(), balance: f.balance, apr: f.apr, minPayment: f.minPayment });
     toast(debt.id ? 'Boss updated' : '👹 A new boss appears!');
+    if (!debt.id) play('alarm');
     onClose();
   }
   function del() {
@@ -327,6 +343,7 @@ export function Stats() {
       <${Stat} label="Current streak" value=${game.streak + ' days'} />
       <${Stat} label="Best streak" value=${game.bestStreak + ' days'} />
     </div>
+    <${Card} title="Character build"><${BuildRadar} /><//>
     <${Card} title="XP, last 14 days"><${XPChart} /><//>
     <${Card} title="Attributes">
       <div class="focus-list">

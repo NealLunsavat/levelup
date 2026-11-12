@@ -33,6 +33,16 @@ Each quest only counts if you log it **during its window** (or up to 60 minutes 
 - Every quest cleared heals **+5 HP**. HP never goes above 100.
 - Schedules, rewards and penalties live in `js/dungeon.js`.
 
+## Look and feel
+
+- **Themes** (Settings → This device). *Auto* follows your day: 🩸 Iron Dungeon (red/black) from 5:00 AM, ☀️ Daylight (bright, readable in the car) from 9:30 AM, 🌃 Night City (cyan/purple) from 8:00 PM. You can also lock in any theme, including the original ⚡ Neon.
+- **Sound effects** are synthesized retro blips (no audio files) for logs, quests, ambushes, purchases and a fanfare for level-ups. They respect the iPhone's silent switch and mix with your music.
+- **Haptics**: a tap you can feel on iPhone (iOS 18+; iPhones have no vibration API for web apps, so this uses the native switch control's haptic). Android uses `navigator.vibrate`.
+- **Character build**: a radar chart of your five attributes on the Stats and Skills pages, outlined against your build from 4 weeks ago.
+- **Quick log** bar on Home for one-tap Shift / Study / Workout / Meal / Sleep.
+- **Keyboard shortcuts** (Mac): `1` Quest board, `2` Loot Shop, `3` Skill tree, `4` Stats, `5` Skills, `0` Settings, `N` log something, `?` list. They work with or without ⌘ in the Dock app.
+- **App shortcuts**: right-click the Dock icon (Chrome-installed on Mac) or long-press on Android for Log shift / Log study / Log workout / Loot Shop. iPhone doesn't support these for web apps, so use the Quick log bar there.
+
 ## Levels and Gold
 
 - XP needed for each level is `100 × level^1.5`: 100 for level 1→2, 282 for 2→3, 3,162 for 10→11. Early levels fly by; later ones are a grind. Attributes level up on the same curve.
@@ -173,6 +183,7 @@ Good to know:
 | `js/nasm.js`, `js/ambush.js` | NASM question bank, encounter timing, and the Ambush pop-up |
 | `js/career.js`, `js/skilltree.js` | Career nodes and quest packs, and the Career page |
 | `js/shop.js` | The Loot Shop |
+| `js/fx.js`, `js/theme.js` | Sound effects and haptics, and the time-based themes |
 | `js/sync.js` | Optional Supabase sync |
 | `js/app.js` | Navigation, layout, level-up celebrations |
 | `js/pages.js`, `js/settings.js`, `js/logsheet.js`, `js/components.js` | The screens |

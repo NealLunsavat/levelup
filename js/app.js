@@ -1,8 +1,10 @@
 // App shell: routing, layout, toasts and level-up celebrations.
 import { html, render, useCallback, useEffect, useMemo, useRef, useState } from '../vendor/preact-htm.js';
 import { all, changeSource, get, subscribe } from './store.js';
-import { BONUS, SKILLS, buildGame } from './game.js';
-import { Ctx, PlayerCard, celebrate } from './components.js';
+import { BONUS, KINDS, SKILLS, buildGame } from './game.js';
+import { Ctx, PlayerCard, Sheet, celebrate } from './components.js';
+import * as fx from './fx.js';
+import { THEMES, applyTheme, getThemePref, resolveTheme, setThemePref } from './theme.js';
 import { Ambush } from './ambush.js';
 import { CareerPage } from './skilltree.js';
 import { Shop } from './shop.js';
@@ -73,6 +75,54 @@ const NAV = [
 ];
 const TABS = NAV.filter(n => n.tab);
 
+// Keyboard shortcuts for the Mac. Number keys work alone or with ⌘/Ctrl (browsers keep ⌘1–9 for
+// switching tabs, but the app added to the Dock has no tabs, so ⌘ works there).
+const SHORTCUTS = [
+  ['1', 'Quest board (Home)', '#/'],
+  ['2', 'Loot Shop', '#/shop'],
+  ['3', 'Skill tree (Career)', '#/career'],
+  ['4', 'Stats', '#/stats'],
+  ['5', 'Skills', '#/skills'],
+  ['0', 'Settings', '#/settings'],
+];
+
+function useShortcuts(openLog, toggleHelp) {
+  useEffect(() => {
+    const onKey = e => {
+      if (e.altKey || e.target.closest?.('input, select, textarea, [contenteditable]')) return;
+      const sheetOpen = !!document.querySelector('.overlay');
+      const go = SHORTCUTS.find(([key]) => key === e.key);
+      if (go) {
+        if (sheetOpen) return;
+        e.preventDefault();
+        location.hash = go[2];
+        fx.play('tap');
+      } else if (!e.metaKey && !e.ctrlKey && (e.key === 'n' || e.key === 'l') && !sheetOpen) {
+        e.preventDefault();
+        openLog();
+      } else if (e.key === '?') {
+        e.preventDefault();
+        toggleHelp();
+      }
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, []);
+}
+
+function ShortcutHelp({ onClose }) {
+  const row = (label, key) => html`<div class="mini-row"><span>${label}</span><span></span><kbd>${key}</kbd></div>`;
+  return html`<${Sheet} title="Keyboard shortcuts" onClose=${onClose}>
+    <div class="mini-table">
+      ${SHORTCUTS.map(([key, label]) => row(label, key))}
+      ${row('Log activity', 'N')}
+      ${row('Close a sheet', 'Esc')}
+      ${row('Show this list', '?')}
+    </div>
+    <p class="muted small">Number keys work on their own or with ⌘. In a regular browser tab ⌘1–9 switches tabs, so use the plain numbers there.</p>
+  <//>`;
+}
+
 // A short terminal-style boot screen, once per app launch. Tap to skip.
 function Boot({ name }) {
   const [show, setShow] = useState(() => {
@@ -128,8 +178,36 @@ function App() {
     setToasts(t => [...t, { id, text }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 2800);
   }, []);
-  const [logSheet, setLogSheet] = useState(null);
+  // A link like ?log=shift (used by the app's shortcut menu on Mac and Android) opens that log form.
+  const [logSheet, setLogSheet] = useState(() => {
+    const kind = new URLSearchParams(location.search).get('log');
+    if (kind) history.replaceState(null, '', location.pathname + location.hash);
+    return kind && KINDS[kind] ? { kind } : null;
+  });
   const [levelUp, setLevelUp] = useState(null);
+  const [help, setHelp] = useState(false);
+  useShortcuts(() => setLogSheet({}), () => setHelp(h => !h));
+
+  // Time-responsive theme: follows the clock on Auto, announced when it changes on its own.
+  const [themePref, setThemePrefState] = useState(getThemePref);
+  const theme = resolveTheme(themePref, new Date(game.now));
+  const lastTheme = useRef(theme);
+  useEffect(() => {
+    applyTheme(theme);
+    if (lastTheme.current !== theme && themePref === 'auto') {
+      toast(`${THEMES[theme].icon} ${THEMES[theme].name} mode`);
+      fx.play('shift');
+    }
+    lastTheme.current = theme;
+  }, [theme]);
+
+  // Sound the alarm when a NASM Ambush appears.
+  const lastAmbush = useRef(game.pendingAmbush?.id);
+  useEffect(() => {
+    const id = game.pendingAmbush?.id;
+    if (id && id !== lastAmbush.current) fx.feedback('alarm', 'heavy');
+    lastAmbush.current = id;
+  }, [game.pendingAmbush?.id]);
 
   // Celebrate level-ups, cleared quests and defeated bosses (only for changes made on this device),
   // and warn when a dungeon quest's window closes unfinished.
@@ -146,24 +224,52 @@ function App() {
     const p = prev.current;
     prev.current = snap;
     if (!p || p.today !== today) return;
+    // Only the biggest moment gets a sound, so effects don't pile on top of each other.
+    const moments = [];
     for (const q of game.dungeonToday) {
       if (p.dungeon[q.id] === q.status) continue;
-      if (q.status === 'complete') toast(`${q.icon} ${q.name} cleared!`);
-      if (q.status === 'missed') toast(`💔 ${q.name} missed${q.penalty ? ` · −${q.penalty} HP` : ''}`);
+      if (q.status === 'complete') {
+        toast(`${q.icon} ${q.name} cleared!`);
+        moments.push(['quest', 'double', 2]);
+      }
+      if (q.status === 'missed') {
+        toast(`💔 ${q.name} missed${q.penalty ? ` · −${q.penalty} HP` : ''}`);
+        moments.push(['hit', 'heavy', 1]);
+      }
     }
-    if (changeSource() !== 'local') return;
-    if (snap.level > p.level) {
-      setLevelUp({ level: snap.level, title: game.title });
-      celebrate();
+    if (changeSource() === 'local') {
+      if (snap.level > p.level) {
+        setLevelUp({ level: snap.level, title: game.title });
+        celebrate();
+        moments.push(['levelup', 'heavy', 5]);
+      }
+      for (const s of skills) {
+        if (p.skills[s.id] && snap.skills[s.id].level > p.skills[s.id].level) {
+          toast(`${s.icon} ${s.name} reached Lv ${snap.skills[s.id].level}!`);
+          moments.push(['tick', 'double', 1]);
+        }
+      }
+      if (snap.allClear && !p.allClear) {
+        toast(`🎉 All daily quests cleared! +${BONUS.allQuests} XP`);
+        moments.push(['quest', 'double', 3]);
+      }
+      if (snap.defeated > p.defeated) {
+        toast(`⚔️ Debt boss defeated! +${BONUS.boss} XP`);
+        moments.push(['levelup', 'heavy', 4]);
+      }
     }
-    for (const s of skills) {
-      if (p.skills[s.id] && snap.skills[s.id].level > p.skills[s.id].level) toast(`${s.icon} ${s.name} reached Lv ${snap.skills[s.id].level}!`);
-    }
-    if (snap.allClear && !p.allClear) toast(`🎉 All daily quests cleared! +${BONUS.allQuests} XP`);
-    if (snap.defeated > p.defeated) toast(`⚔️ Debt boss defeated! +${BONUS.boss} XP`);
+    const top = moments.sort((a, b) => b[2] - a[2])[0];
+    if (top) setTimeout(() => fx.feedback(top[0], top[1]), 150);
   }, [game]);
 
-  const ctx = { data, game, skills, skillMap, toast, openLog: opts => setLogSheet(opts ?? {}) };
+  const ctx = {
+    data, game, skills, skillMap, toast, themePref,
+    openLog: opts => setLogSheet(opts ?? {}),
+    setThemePref: pref => {
+      setThemePref(pref);
+      setThemePrefState(pref);
+    },
+  };
 
   let page;
   if (route.startsWith('/skill/')) page = html`<${SkillPage} id=${decodeURIComponent(route.slice(7))} />`;
@@ -183,17 +289,21 @@ function App() {
         <nav class="side-nav">
           ${NAV.map(n => html`<a href=${n.href} class=${n.match(route) ? 'active' : ''}><${Icon} name=${n.icon} />${n.label}</a>`)}
         </nav>
-        <div class="side-foot muted tiny">🔥 ${game.streak}-day streak · +${game.todayXP} XP today</div>
+        <div class="side-foot muted tiny">
+          <div>🔥 ${game.streak}-day streak · +${game.todayXP} XP today</div>
+          <button class="link tiny" onClick=${() => setHelp(true)}>⌨ Keyboard shortcuts (?)</button>
+        </div>
       </aside>
       <main class="main">${page}</main>
       <nav class="tabbar">
-        ${TABS.slice(0, 2).map(n => html`<a href=${n.href} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
-        <button class="tab-log" onClick=${() => ctx.openLog()} aria-label="Log activity"><span class="tab-log-hex">+</span></button>
-        ${TABS.slice(2).map(n => html`<a href=${n.href} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
+        ${TABS.slice(0, 2).map(n => html`<a href=${n.href} onClick=${() => fx.haptic()} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
+        <button class="tab-log" onClick=${() => { fx.feedback('tap'); ctx.openLog(); }} aria-label="Log activity"><span class="tab-log-hex">+</span></button>
+        ${TABS.slice(2).map(n => html`<a href=${n.href} onClick=${() => fx.haptic()} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
       </nav>
     </div>
     ${logSheet && html`<${LogSheet} initial=${logSheet} onClose=${() => setLogSheet(null)} />`}
     <${Ambush} />
+    ${help && html`<${ShortcutHelp} onClose=${() => setHelp(false)} />`}
     ${levelUp && html`<div class="levelup" onClick=${() => setLevelUp(null)}>
       <div class="levelup-card">
         <div class="levelup-rays"></div>
@@ -208,6 +318,7 @@ function App() {
   <//>`;
 }
 
+applyTheme(resolveTheme(getThemePref()));
 render(html`<${App} />`, document.getElementById('app'));
 
 // Sync: start up, then push changes a moment after you make them and pull when the app comes back.

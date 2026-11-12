@@ -108,6 +108,7 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, setting
   const attrXP = Object.fromEntries(ATTRIBUTES.map(a => [a.id, 0]));
   const xpByDate = {};
   const xpOfLog = {};
+  const attrByDate = {};
   let total = 0;
   const add = (date, skill, base, at) => {
     const xp = Math.round(base * multiplier(date, at));
@@ -116,7 +117,11 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, setting
     xpByDate[date] = (xpByDate[date] || 0) + xp;
     if (skill in skillXP) skillXP[skill] += xp;
     const attr = ATTR_OF_SKILL[skill];
-    if (attr) attrXP[attr] += xp;
+    if (attr) {
+      attrXP[attr] += xp;
+      const day = (attrByDate[date] ??= {});
+      day[attr] = (day[attr] || 0) + xp;
+    }
     return xp;
   };
 
@@ -221,6 +226,13 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, setting
     .map(q => ({ ...q, ...questProgress(q, todayLogs) }));
 
   const attributes = ATTRIBUTES.map(a => ({ ...a, xp: attrXP[a.id], ...levelFromXP(attrXP[a.id]) }));
+  // Your build 4 weeks ago, for the radar chart's comparison outline.
+  const cutoff = addDays(today, -28);
+  const xpAgo = Object.fromEntries(ATTRIBUTES.map(a => [a.id, 0]));
+  for (const [date, byAttr] of Object.entries(attrByDate)) {
+    if (date <= cutoff) for (const [id, xp] of Object.entries(byAttr)) xpAgo[id] += xp;
+  }
+  const attributesAgo = ATTRIBUTES.map(a => ({ id: a.id, xp: xpAgo[a.id], ...levelFromXP(xpAgo[a.id]) }));
   const buffs = [];
   if (mentalReset(today)) buffs.push({ icon: '🧘', name: 'Mental Reset', desc: '+5% XP today' });
   if (burnout.active) buffs.push({ icon: '🧠', name: 'Cyberpsychosis', desc: '−20% XP', bad: true });
@@ -248,6 +260,7 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, setting
     pendingAmbush,
     career: evaluateCareer(career, attributes),
     attributes,
+    attributesAgo,
     skillXP,
     skillLevels: Object.fromEntries(Object.entries(skillXP).map(([id, xp]) => [id, levelFromXP(xp)])),
     xpByDate,

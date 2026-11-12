@@ -2,6 +2,7 @@
 import { html, useState } from '../vendor/preact-htm.js';
 import { GOLD_PER_IRL_DOLLAR, goldCost } from './rpgMath.js';
 import { put, remove } from './store.js';
+import { feedback } from './fx.js';
 import { Bar, Card, Count, Empty, Sheet, celebrate, useApp } from './components.js';
 import { Choice, Num, Text } from './logsheet.js';
 import { fmtMoney, fmtNum } from './util.js';
@@ -28,6 +29,7 @@ export function Shop() {
     if (locked || game.gold < cost) return;
     put({ ...item, purchasedAt: Date.now(), goldCost: cost });
     celebrate();
+    feedback('coin', 'double');
     setGranted(item);
   }
 

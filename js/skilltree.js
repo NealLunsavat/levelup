@@ -3,6 +3,7 @@ import { html, useState } from '../vendor/preact-htm.js';
 import { CAREER_NODES } from './career.js';
 import { CAREER_QUEST_XP } from './rpgMath.js';
 import { put, remove } from './store.js';
+import { feedback } from './fx.js';
 import { Card, Empty, celebrate, useApp } from './components.js';
 import { fmtDate, todayStr } from './util.js';
 
@@ -65,6 +66,7 @@ function NodeDetail({ node }) {
     const c = data.career;
     put({ ...c, id: 'career', type: 'career', unlocked: { ...(c.unlocked ?? {}), [node.id]: Date.now() } });
     celebrate();
+    feedback('levelup', 'heavy');
     toast(`${node.icon} ${node.name} unlocked! New quests: ${node.unlocks}`);
   }
 
@@ -132,6 +134,7 @@ export function CareerQuests({ home }) {
     const log = doneToday.get(q.id);
     if (log) return remove(log.id);
     put({ type: 'log', kind: 'career', skill: pack.skill, date: game.today, createdAt: Date.now(), questId: q.id, title: q.title, pack: pack.id });
+    feedback('tick');
     toast(`🎯 ${q.title}`);
   }
   const all = packs.flatMap(p => p.quests);

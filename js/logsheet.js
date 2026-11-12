@@ -3,6 +3,7 @@ import { html, useState } from '../vendor/preact-htm.js';
 import { KINDS, logXP } from './game.js';
 import { BEDTIME_CUTOFF, RECOVERY_SLEEP_HOURS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER } from './rpgMath.js';
 import { put, remove } from './store.js';
+import { feedback, play } from './fx.js';
 import { Sheet, useApp } from './components.js';
 import { todayStr } from './util.js';
 
@@ -115,6 +116,7 @@ export function LogSheet({ initial, onClose }) {
     if (rec) out.id = rec.id;
     for (const k of FIELDS[kind]) if (v[k] !== '' && v[k] != null && v[k] !== false) out[k] = v[k];
     put(out);
+    if (!rec) feedback(preview > 0 ? 'log' : 'tick');
     ctx.toast(rec ? 'Saved' : preview > 0 ? `+${preview} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}` : `${KINDS[kind].icon} ${label} logged`);
     onClose();
   }
@@ -122,6 +124,7 @@ export function LogSheet({ initial, onClose }) {
   function del() {
     if (!confirm('Delete this entry? Its XP will be removed.')) return;
     remove(rec.id);
+    play('hit');
     ctx.toast('Deleted');
     onClose();
   }

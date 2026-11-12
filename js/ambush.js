@@ -3,6 +3,7 @@ import { html, useState } from '../vendor/preact-htm.js';
 import { AMBUSH_GOLD, AMBUSH_HP_LOSS, AMBUSH_XP } from './rpgMath.js';
 import { questionFor } from './nasm.js';
 import { put } from './store.js';
+import { feedback } from './fx.js';
 import { useApp } from './components.js';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -32,6 +33,8 @@ export function Ambush() {
     const correct = i === question.a;
     put({ id: fight.enc.id, type: 'ambush', date: fight.enc.date, questionId: question.id, choice: i, correct, answeredAt: Date.now() });
     setFight({ ...fight, choice: i });
+    if (correct) feedback('win', 'double');
+    else feedback('hit', 'heavy');
     toast(correct ? `✅ Ambush won! +${AMBUSH_XP} INT · +${AMBUSH_GOLD} Gold` : `💥 Ambush lost · −${AMBUSH_HP_LOSS} HP`);
   }
 
