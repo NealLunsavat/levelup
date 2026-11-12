@@ -1,0 +1,227 @@
+// Settings: profile, targets, quests, custom skills, sync and backups.
+import { html, useEffect, useState } from '../vendor/preact-htm.js';
+import { METRICS } from './game.js';
+import { exportData, importData, put, remove, resetAll } from './store.js';
+import { Card, Empty, Sheet, useApp } from './components.js';
+import { Choice, Num, Text } from './logsheet.js';
+import { DAY_LETTERS, fmtMoney, fmtNum } from './util.js';
+import * as sync from './sync.js';
+
+const COLORS = ['#9b8cff', '#4fd1ff', '#ffcc4d', '#ff6fb5', '#4cd18a', '#ff7a45', '#c084fc', '#f87171'];
+
+export function Settings() {
+  const { data } = useApp();
+  const s = data.settings;
+  const update = (k, v) => put({ ...s, [k]: v });
+  return html`<div class="page">
+    <h1 class="page-title">Settings</h1>
+
+    <${Card} title="Profile & targets">
+      <div class="form">
+        <label class="field"><span>Player name</span><input type="text" value=${s.name} onChange=${e => update('name', e.target.value.trim())} /></label>
+        <div class="row">
+          <label class="field"><span>Daily calories</span><input type="number" inputmode="numeric" value=${s.calorieTarget} onChange=${e => update('calorieTarget', Number(e.target.value) || 0)} /></label>
+          <label class="field"><span>Daily protein (g)</span><input type="number" inputmode="numeric" value=${s.proteinTarget} onChange=${e => update('proteinTarget', Number(e.target.value) || 0)} /></label>
+        </div>
+        <label class="field"><span>NASM exam date</span><input type="date" value=${s.examDate} onChange=${e => update('examDate', e.target.value)} /></label>
+      </div>
+    <//>
+
+    <${Quests} />
+    <${CustomSkills} />
+    <${SyncCard} />
+    <${Backup} />
+  </div>`;
+}
+
+function Quests() {
+  const { data, skillMap } = useApp();
+  const [editing, setEditing] = useState(null);
+  const fmt = q => {
+    if (q.metric === 'earned' || q.metric === 'paid') return `${fmtMoney(q.target)} ${q.metric}`;
+    if (q.metric === 'count') return q.target === 1 ? '1 entry' : `${fmtNum(q.target)} entries`;
+    return `${fmtNum(q.target)} ${METRICS[q.metric]?.label}`;
+  };
+  return html`<${Card} title="Daily quests" right=${html`<button class="btn small" onClick=${() => setEditing({})}>+ Add</button>`}>
+    <p class="muted small">Clear every quest scheduled for the day to keep your streak. Days with nothing scheduled are rest days.</p>
+    ${data.quests.length ? html`<div class="mini-table">${data.quests.map(q => html`<button class="mini-row quest-setting clickable" onClick=${() => setEditing(q)}>
+      <span>${skillMap[q.skill]?.icon ?? '•'} ${q.title}</span>
+      <span class="days">${DAY_LETTERS.map((d, i) => html`<i class=${(q.days ?? []).includes(i) ? 'on' : ''}>${d}</i>`)}</span>
+      <span class="muted tiny">Target: ${fmt(q)}</span>
+    </button>`)}</div>` : html`<${Empty}>No quests yet.<//>`}
+    ${editing && html`<${QuestForm} quest=${editing} onClose=${() => setEditing(null)} />`}
+  <//>`;
+}
+
+function QuestForm({ quest, onClose }) {
+  const { skills, data } = useApp();
+  const [f, setF] = useState({ title: quest.title ?? '', skill: quest.skill ?? skills[0].id, metric: quest.metric ?? 'minutes', target: quest.target ?? '', days: quest.days ?? [0, 1, 2, 3, 4, 5, 6] });
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const [error, setError] = useState('');
+  function save(e) {
+    e.preventDefault();
+    if (!f.title.trim() || !(f.target > 0)) return setError('Give the quest a name and a target above 0.');
+    const order = quest.order ?? Math.max(0, ...data.quests.map(q => q.order ?? 0)) + 1;
+    put({ ...quest, type: 'quest', order, ...f, title: f.title.trim() });
+    onClose();
+  }
+  function del() {
+    if (!confirm(`Delete "${quest.title}"?`)) return;
+    remove(quest.id);
+    onClose();
+  }
+  return html`<${Sheet} title=${quest.id ? 'Edit quest' : 'New quest'} onClose=${onClose}>
+    <form class="form" onSubmit=${save}>
+      <${Text} label="Quest" k="title" placeholder="e.g. Study NASM for 30 min" f=${f} set=${set} />
+      <label class="field"><span>Skill</span>
+        <select value=${f.skill} onChange=${e => set('skill', e.target.value)}>
+          ${skills.map(s => html`<option value=${s.id}>${s.icon} ${s.name}</option>`)}
+        </select>
+      </label>
+      <div class="row">
+        <label class="field"><span>Measure</span>
+          <select value=${f.metric} onChange=${e => set('metric', e.target.value)}>
+            ${Object.entries(METRICS).map(([k, m]) => html`<option value=${k}>${m.label}</option>`)}
+          </select>
+        </label>
+        <${Num} label="Target" k="target" f=${f} set=${set} />
+      </div>
+      <div class="field"><span>Days</span>
+        <div class="chip-row">${DAY_LETTERS.map((d, i) => html`<button type="button" class=${'chip-btn day' + (f.days.includes(i) ? ' on' : '')}
+          onClick=${() => set('days', f.days.includes(i) ? f.days.filter(x => x !== i) : [...f.days, i].sort())}>${d}</button>`)}</div>
+      </div>
+      ${error && html`<p class="error">${error}</p>`}
+      <div class="form-actions">
+        ${quest.id && html`<button type="button" class="btn ghost danger-text" onClick=${del}>Delete</button>`}
+        <button class="btn primary grow" type="submit">Save</button>
+      </div>
+    </form>
+  <//>`;
+}
+
+function CustomSkills() {
+  const { data } = useApp();
+  const [f, setF] = useState({ name: '', icon: '', color: COLORS[0] });
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  function add(e) {
+    e.preventDefault();
+    if (!f.name.trim()) return;
+    put({ type: 'skill', name: f.name.trim(), icon: f.icon.trim() || '⭐', color: f.color });
+    setF({ name: '', icon: '', color: COLORS[(data.customSkills.length + 1) % COLORS.length] });
+  }
+  return html`<${Card} title="Custom skills">
+    <p class="muted small">Add anything else you want to level up: reading, meditation, a language. Log it by minutes.</p>
+    ${data.customSkills.length > 0 && html`<div class="mini-table">${data.customSkills.map(s => html`<div class="mini-row">
+      <span><span class="dot" style=${{ background: s.color }}></span>${s.icon} ${s.name}</span>
+      <span></span>
+      <button class="btn small ghost danger-text" onClick=${() => confirm(`Remove ${s.name}? Its logs stay in your history.`) && remove(s.id)}>Remove</button>
+    </div>`)}</div>`}
+    <form class="form" onSubmit=${add}>
+      <div class="row">
+        <label class="field narrow"><span>Emoji</span><input type="text" placeholder="⭐" value=${f.icon} onInput=${e => set('icon', e.target.value)} /></label>
+        <${Text} label="Skill name" k="name" placeholder="e.g. Reading" f=${f} set=${set} />
+      </div>
+      <div class="field"><span>Color</span><div class="chip-row">${COLORS.map(c => html`<button type="button" aria-label=${'Color ' + c}
+        class=${'swatch' + (f.color === c ? ' on' : '')} style=${{ background: c }} onClick=${() => set('color', c)}></button>`)}</div></div>
+      <button class="btn primary" type="submit">Add skill</button>
+    </form>
+  <//>`;
+}
+
+function SyncCard() {
+  const { toast } = useApp();
+  const [st, setSt] = useState({ ...sync.syncState() });
+  useEffect(() => sync.onSyncChange(() => setSt({ ...sync.syncState() })), []);
+  const cfg = sync.getConfig();
+  const [f, setF] = useState({ url: cfg.url ?? '', key: cfg.key ?? '', email: '', password: '' });
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const run = fn => async e => {
+    e?.preventDefault();
+    setBusy(true);
+    setMsg('');
+    try {
+      await fn();
+    } catch (err) {
+      setMsg(err.message || String(err));
+    }
+    setBusy(false);
+  };
+
+  let body;
+  if (st.status === 'off') {
+    body = html`<form class="form" onSubmit=${run(async () => {
+      if (!f.url.startsWith('https://') || !f.key) throw new Error('Paste both the Project URL and the API key from Supabase.');
+      await sync.connect(f.url, f.key);
+    })}>
+      <p class="muted small">Right now your data lives only on this device. To keep your iPhone, iPad and Mac in sync, connect a free Supabase project. The README walks you through it in about 5 minutes.</p>
+      <${Text} label="Supabase Project URL" k="url" placeholder="https://xxxx.supabase.co" f=${f} set=${set} />
+      <${Text} label="Supabase anon / publishable key" k="key" placeholder="eyJhbGci… or sb_publishable_…" f=${f} set=${set} />
+      <button class="btn primary" disabled=${busy}>Connect</button>
+    </form>`;
+  } else if (st.status === 'signed-out' || (!st.user && st.status === 'error')) {
+    body = html`<form class="form" onSubmit=${run(() => sync.signIn(f.email, f.password))}>
+      <p class="muted small">Sign in with the same email on every device. First time? Create your account here once.</p>
+      <label class="field"><span>Email</span><input type="email" autocomplete="username" value=${f.email} onInput=${e => set('email', e.target.value)} /></label>
+      <label class="field"><span>Password</span><input type="password" autocomplete="current-password" value=${f.password} onInput=${e => set('password', e.target.value)} /></label>
+      <div class="form-actions">
+        <button type="button" class="btn ghost" disabled=${busy} onClick=${run(async () => {
+          const result = await sync.signUp(f.email, f.password);
+          if (result === 'confirm-email') setMsg('Check your email to confirm your account, then sign in here.');
+        })}>Create account</button>
+        <button class="btn primary grow" disabled=${busy}>Sign in</button>
+      </div>
+      <button type="button" class="link small" onClick=${() => sync.disconnect()}>Use a different Supabase project</button>
+    </form>`;
+  } else {
+    const label = { syncing: 'Syncing…', ok: 'Synced', error: 'Sync error' }[st.status];
+    body = html`<div class="form">
+      <div class="sync-status"><span class=${'sync-dot ' + st.status}></span><b>${label}</b>
+        <span class="muted small">${st.user?.email}${st.lastSync ? ` · last synced ${new Date(st.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}</span></div>
+      ${st.error && html`<p class="error">${st.error}</p>`}
+      <div class="form-actions">
+        <button class="btn ghost" onClick=${run(() => sync.signOut())}>Sign out</button>
+        <button class="btn primary grow" disabled=${busy || st.status === 'syncing'} onClick=${run(async () => { await sync.syncNow(); toast('Synced'); })}>Sync now</button>
+      </div>
+    </div>`;
+  }
+  return html`<${Card} title="Sync across devices">
+    ${body}
+    ${msg && html`<p class="error">${msg}</p>`}
+  <//>`;
+}
+
+function Backup() {
+  const { toast } = useApp();
+  function download() {
+    const blob = new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `levelup-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  async function upload(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const n = importData(JSON.parse(await file.text()));
+      toast(`Imported ${n} entries`);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+  return html`<${Card} title="Backup">
+    <p class="muted small">Download a copy of everything, or restore from one. Handy before switching devices.</p>
+    <div class="form-actions">
+      <button class="btn" onClick=${download}>Export backup</button>
+      <label class="btn">Import backup<input type="file" accept="application/json,.json" hidden onChange=${upload} /></label>
+    </div>
+    <div class="danger-zone">
+      <button class="btn ghost danger-text small" onClick=${() => confirm('Erase ALL your progress and start over? This also erases it on your synced devices. Export a backup first if you might want it back.') && resetAll()}>Reset all progress</button>
+    </div>
+  <//>`;
+}
