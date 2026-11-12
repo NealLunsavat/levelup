@@ -163,6 +163,63 @@ b { font-weight: 700; }
 .player.compact .lv-num { font-size: 24px; }
 .player.compact .player-name { font-size: 16px; }
 
+.vitals { display: flex; align-items: center; gap: 12px; }
+.hp { flex: 1; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.hp-label { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; }
+.hp-num { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+.gold { font-weight: 800; color: var(--gold); padding: 4px 10px; border-radius: 99px; background: rgba(255, 204, 77, 0.14); white-space: nowrap; }
+.player.compact .vitals { flex-direction: column; align-items: stretch; gap: 8px; }
+.player.compact .gold { align-self: flex-start; }
+.chip.buff { background: rgba(124, 245, 196, 0.15); color: #9ff7d2; }
+
+/* ---------- Attributes ---------- */
+
+.attr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.attr-card {
+  display: flex; flex-direction: column; gap: 5px; padding: 14px; border-radius: 16px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 16%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--c) 30%, var(--line));
+}
+.attr-card:hover { transform: translateY(-2px); }
+.attr-top { display: flex; justify-content: space-between; align-items: center; }
+.attr-name { font-weight: 900; letter-spacing: 0.04em; }
+.attr-tag { font-size: 12px; font-weight: 900; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.1); color: var(--muted); }
+
+/* ---------- Daily Dungeon ---------- */
+
+.dungeon { display: flex; flex-direction: column; gap: 10px; }
+.dq { display: grid; grid-template-columns: 62px 1fr; gap: 12px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.dq-time { display: flex; flex-direction: column; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.dq-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dq-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.dq-name { font-weight: 800; }
+.dq-status { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.dq-rewards { display: flex; flex-wrap: wrap; gap: 6px; }
+.reward { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 99px; background: rgba(255, 204, 77, 0.12); color: var(--gold); }
+.reward.bad { background: rgba(255, 93, 115, 0.12); color: #ff9aa9; }
+.reward.good { background: rgba(76, 209, 138, 0.18); color: var(--good); }
+.dq-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.dq.locked { opacity: 0.55; }
+.dq.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 24px rgba(139, 123, 255, 0.25); }
+.dq.active .dq-status { color: var(--accent); }
+.dq.complete { background: linear-gradient(160deg, rgba(76, 209, 138, 0.14), var(--surface-2)); border-color: rgba(76, 209, 138, 0.35); }
+.dq.complete .dq-status { color: var(--good); }
+.dq.missed { background: linear-gradient(160deg, rgba(255, 93, 115, 0.12), var(--surface-2)); border-color: rgba(255, 93, 115, 0.3); }
+.dq.missed .dq-status { color: var(--danger); }
+.dq.untracked { opacity: 0.45; }
+.dq.complete, .dq.missed, .dq.untracked { padding-top: 8px; padding-bottom: 8px; }
+.dq.complete .dq-time span + span, .dq.missed .dq-time span + span, .dq.untracked .dq-time span + span { display: none; }
+.stealth { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; background: rgba(79, 163, 255, 0.08); border: 1px dashed rgba(79, 163, 255, 0.35); }
+.stealth-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.stealth .btn { align-self: flex-start; }
+
+.toggle { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); text-align: left; }
+.toggle-dot { flex-shrink: 0; width: 44px; height: 26px; border-radius: 99px; background: var(--surface-3); position: relative; transition: background 0.2s; }
+.toggle-dot::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
+.toggle.on { border-color: #4fa3ff; }
+.toggle.on .toggle-dot { background: #4fa3ff; }
+.toggle.on .toggle-dot::after { transform: translateX(18px); }
+
 /* ---------- Quests ---------- */
 
 .quest-list { display: flex; flex-direction: column; gap: 6px; }

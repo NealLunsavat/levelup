@@ -1,8 +1,9 @@
 // Home, skill pages and stats.
 import { html, useState } from '../vendor/preact-htm.js';
-import { ACHIEVEMENTS, BONUS } from './game.js';
+import { ACHIEVEMENTS, ATTR_OF_SKILL, BONUS } from './game.js';
 import { put, remove } from './store.js';
-import { Bar, Card, Empty, LogList, PlayerCard, Sheet, SkillGrid, Stat, useApp } from './components.js';
+import { AttributeGrid, Bar, Card, Empty, LogList, PlayerCard, Sheet, SkillGrid, Stat, useApp } from './components.js';
+import { QuestBoard } from './questboard.js';
 import { ART_FOCUS, Num, Text } from './logsheet.js';
 import { DAY_LETTERS, addDays, dayOfWeek, daysBetween, fmtDate, fmtMinutes, fmtMoney, fmtNum, groupBy, parseDate, sum } from './util.js';
 
@@ -15,14 +16,16 @@ export function Home() {
   return html`<div class="page">
     <${PlayerCard} />
 
-    <${Card} title="Daily quests" right=${html`<span class="muted small">${done}/${quests.length} cleared</span>`}>
+    <${QuestBoard} />
+
+    <${Card} title="Side quests" right=${html`<span class="muted small">${done}/${quests.length} cleared</span>`}>
       ${quests.length ? html`<div class="quest-list">${quests.map(q => html`<${QuestRow} q=${q} skill=${skillMap[q.skill]} onClick=${() => openLog({ skill: q.skill })} />`)}</div>`
         : html`<${Empty}>No quests scheduled today. Rest day! Edit quests in <a href="#/settings">Settings</a>.<//>`}
       ${game.allClear && html`<div class="banner">🎉 All quests cleared! +${BONUS.allQuests} bonus XP</div>`}
     <//>
 
-    <div class="section-head"><h3>Skills</h3><a class="small link" href="#/skills">View all</a></div>
-    <${SkillGrid} />
+    <div class="section-head"><h3>Attributes</h3><a class="small link" href="#/skills">All skills</a></div>
+    <${AttributeGrid} />
 
     <${Card} title="Recent activity">
       <${LogList} logs=${data.logs} limit=${8} />
@@ -66,7 +69,7 @@ export function SkillPage({ id }) {
       <div class="skill-hero-row">
         <span class="skill-hero-icon">${skill.icon}</span>
         <div class="grow">
-          <h1>${skill.name} <span class="skill-lv">Lv ${lv.level}</span></h1>
+          <h1>${skill.name} <span class="skill-lv">Lv ${lv.level}</span>${ATTR_OF_SKILL[id] && html`<span class="attr-tag">${ATTR_OF_SKILL[id].toUpperCase()}</span>`}</h1>
           <div class="muted small">${skill.blurb ?? 'Custom skill'}</div>
           <${Bar} pct=${lv.pct} color=${skill.color} />
           <div class="xp-text">${fmtNum(lv.into)} / ${fmtNum(lv.need)} XP · ${fmtNum(game.skillXP[id])} total</div>
@@ -302,21 +305,23 @@ function Custom({ logs }) {
 // ---------------- Stats ----------------
 
 export function Stats() {
-  const { game, skills } = useApp();
+  const { game } = useApp();
   const unlocked = ACHIEVEMENTS.filter(a => a.test(game));
-  const maxSkill = Math.max(1, ...skills.map(s => game.skillXP[s.id]));
+  const maxAttr = Math.max(1, ...game.attributes.map(a => a.xp));
   return html`<div class="page">
     <h1 class="page-title">Stats</h1>
     <div class="stats">
       <${Stat} label="Level" value=${game.overall.level} sub=${game.title} />
       <${Stat} label="Total XP" value=${fmtNum(game.total)} />
+      <${Stat} label="HP" value=${`${game.hp}/${game.maxHp}`} />
+      <${Stat} label="Gold" value=${'🪙 ' + fmtNum(game.gold)} sub=${`${fmtNum(game.goldEarned)} earned all time`} />
       <${Stat} label="Current streak" value=${game.streak + ' days'} />
       <${Stat} label="Best streak" value=${game.bestStreak + ' days'} />
     </div>
     <${Card} title="XP, last 14 days"><${XPChart} /><//>
-    <${Card} title="XP by skill">
+    <${Card} title="Attributes">
       <div class="focus-list">
-        ${skills.map(s => html`<div class="focus-row"><span>${s.icon} ${s.name}</span><${Bar} pct=${game.skillXP[s.id] / maxSkill} color=${s.color} thin /><span class="small muted">${fmtNum(game.skillXP[s.id])}</span></div>`)}
+        ${game.attributes.map(a => html`<div class="focus-row"><span>${a.icon} ${a.name} <span class="tiny muted">Lv ${a.level}</span></span><${Bar} pct=${a.xp / maxAttr} color=${a.color} thin /><span class="small muted">${fmtNum(a.xp)}</span></div>`)}
       </div>
     <//>
     <${Card} title="Achievements" right=${html`<span class="muted small">${unlocked.length}/${ACHIEVEMENTS.length}</span>`}>

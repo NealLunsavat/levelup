@@ -61,7 +61,16 @@ export function PlayerCard({ compact }) {
         <div class="xp-text">${fmtNum(o.into)} / ${fmtNum(o.need)} XP to Lv ${o.level + 1}</div>
       </div>
     </div>
+    <div class="vitals">
+      <div class="hp">
+        <span class="hp-label">❤️ HP</span>
+        <${Bar} pct=${game.hp / game.maxHp} color=${game.hp > 60 ? 'var(--good)' : game.hp > 30 ? 'var(--gold)' : 'var(--danger)'} />
+        <span class="hp-num">${game.hp}/${game.maxHp}</span>
+      </div>
+      <a class="gold" href="#/stats" title="Gold">🪙 ${fmtNum(game.gold)}</a>
+    </div>
     ${!compact && html`<div class="chips">
+      ${game.buffs.map(b => html`<span class="chip buff" title=${b.desc}>${b.icon} ${b.name} · ${b.desc}</span>`)}
       <span class="chip fire">🔥 ${game.streak}-day streak</span>
       <span class="chip">⚡ +${fmtNum(game.todayXP)} XP today</span>
       <span class="chip">✨ ${fmtNum(game.total)} total XP</span>
@@ -69,10 +78,22 @@ export function PlayerCard({ compact }) {
   </div>`;
 }
 
+export function AttributeGrid() {
+  const { game } = useApp();
+  return html`<div class="attr-grid">
+    ${game.attributes.map(a => html`<a class="attr-card" href=${'#/skill/' + a.page} style=${{ '--c': a.color }}>
+      <div class="attr-top"><span class="attr-name">${a.icon} ${a.name}</span><span class="skill-lv">Lv ${a.level}</span></div>
+      <div class="tiny muted">${a.full}</div>
+      <${Bar} pct=${a.pct} color=${a.color} thin />
+      <div class="tiny muted">${fmtNum(a.into)} / ${fmtNum(a.need)} XP</div>
+    </a>`)}
+  </div>`;
+}
+
 export function SkillGrid() {
   const { skills, game } = useApp();
   return html`<div class="skill-grid">
-    ${skills.map(s => {
+    ${skills.filter(s => !s.hidden).map(s => {
       const lv = game.skillLevels[s.id];
       return html`<a class="skill-card" href=${'#/skill/' + s.id} style=${{ '--c': s.color }}>
         <div class="skill-top"><span class="skill-icon">${s.icon}</span><span class="skill-lv">Lv ${lv.level}</span></div>
@@ -93,9 +114,20 @@ export function describeLog(l, ctx) {
     case 'shift':
       parts.push(fmtMoney(l.amount), l.platform, l.hours && `${l.hours}h`, l.miles && `${l.miles} mi`);
       break;
+    case 'itshift':
+      parts.push(`${l.hours}h`, l.pay && fmtMoney(l.pay), l.note);
+      break;
     case 'study':
+      parts.push(l.stealth && '🥷 Stealth', fmtMinutes(l.minutes), l.topic);
+      break;
     case 'activity':
-      parts.push(fmtMinutes(l.minutes), l.topic, l.note);
+      parts.push(fmtMinutes(l.minutes), l.note);
+      break;
+    case 'content':
+      parts.push(l.category, fmtMinutes(l.minutes), l.note);
+      break;
+    case 'rest':
+      parts.push(l.game, fmtMinutes(l.minutes));
       break;
     case 'quiz':
       parts.push(`${l.score}%`, l.topic);
@@ -129,7 +161,7 @@ export function LogList({ logs, limit = 10 }) {
           <span class="log-title">${label}</span>
           <span class="log-sub">${describeLog(l, ctx)}</span>
         </span>
-        <span class="log-meta"><span class="xp">+${logXP(l)}</span><span class="tiny muted">${fmtDate(l.date)}</span></span>
+        <span class="log-meta"><span class="xp">+${ctx.game.xpOfLog[l.id] ?? logXP(l)}</span><span class="tiny muted">${fmtDate(l.date)}</span></span>
       </button>`;
     })}
   </div>`;

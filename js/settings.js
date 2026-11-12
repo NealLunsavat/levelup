@@ -42,8 +42,8 @@ function Quests() {
     if (q.metric === 'count') return q.target === 1 ? '1 entry' : `${fmtNum(q.target)} entries`;
     return `${fmtNum(q.target)} ${METRICS[q.metric]?.label}`;
   };
-  return html`<${Card} title="Daily quests" right=${html`<button class="btn small" onClick=${() => setEditing({})}>+ Add</button>`}>
-    <p class="muted small">Clear every quest scheduled for the day to keep your streak. Days with nothing scheduled are rest days.</p>
+  return html`<${Card} title="Side quests" right=${html`<button class="btn small" onClick=${() => setEditing({})}>+ Add</button>`}>
+    <p class="muted small">Flexible daily goals you can do any time (the Daily Dungeon is the time-gated schedule). Clear every side quest scheduled for the day to keep your streak; days with none scheduled are rest days.</p>
     ${data.quests.length ? html`<div class="mini-table">${data.quests.map(q => html`<button class="mini-row quest-setting clickable" onClick=${() => setEditing(q)}>
       <span>${skillMap[q.skill]?.icon ?? '•'} ${q.title}</span>
       <span class="days">${DAY_LETTERS.map((d, i) => html`<i class=${(q.days ?? []).includes(i) ? 'on' : ''}>${d}</i>`)}</span>

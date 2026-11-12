@@ -15,6 +15,7 @@ function snapshot() {
     quests: all('quest').sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     debts: all('debt'),
     customSkills: all('skill').sort((a, b) => a.updatedAt - b.updatedAt),
+    purchases: all('purchase'),
     settings: get('settings') ?? {},
   };
 }
@@ -32,19 +33,19 @@ function useRoute() {
   return hash.slice(1);
 }
 
-// Re-render when the date rolls over (e.g. the app was left open overnight).
-function useToday() {
-  const [today, setToday] = useState(todayStr());
+// A clock that ticks every 30 seconds, so time-gated quests lock and unlock on their own.
+function useNow() {
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const check = () => setToday(todayStr());
-    const id = setInterval(check, 60000);
-    document.addEventListener('visibilitychange', check);
+    const tick = () => setNow(Date.now());
+    const id = setInterval(tick, 30000);
+    document.addEventListener('visibilitychange', tick);
     return () => {
       clearInterval(id);
-      document.removeEventListener('visibilitychange', check);
+      document.removeEventListener('visibilitychange', tick);
     };
   }, []);
-  return today;
+  return now;
 }
 
 const ICONS = {
@@ -66,7 +67,8 @@ function App() {
   const [version, setVersion] = useState(0);
   useEffect(() => subscribe(() => setVersion(v => v + 1)), []);
   const route = useRoute();
-  const today = useToday();
+  const now = useNow();
+  const today = todayStr(new Date(now));
 
   const data = useMemo(snapshot, [version]);
   const skills = useMemo(() => [
@@ -74,7 +76,7 @@ function App() {
     ...data.customSkills.map(s => ({ id: s.id, name: s.name, icon: s.icon || '⭐', color: s.color || '#9b8cff', custom: true })),
   ], [data]);
   const skillMap = useMemo(() => Object.fromEntries(skills.map(s => [s.id, s])), [skills]);
-  const game = useMemo(() => buildGame({ ...data, skills }, today), [data, skills, today]);
+  const game = useMemo(() => buildGame({ ...data, skills }, today, now), [data, skills, now]);
 
   const [toasts, setToasts] = useState([]);
   const toast = useCallback(text => {
@@ -85,7 +87,8 @@ function App() {
   const [logSheet, setLogSheet] = useState(null);
   const [levelUp, setLevelUp] = useState(null);
 
-  // Celebrate level-ups, cleared quests and defeated bosses (only for changes made on this device).
+  // Celebrate level-ups, cleared quests and defeated bosses (only for changes made on this device),
+  // and warn when a dungeon quest's window closes unfinished.
   const prev = useRef(null);
   useEffect(() => {
     const snap = {
@@ -94,10 +97,17 @@ function App() {
       skills: game.skillLevels,
       allClear: game.allClear,
       defeated: game.bosses.filter(b => b.defeatedOn).length,
+      dungeon: Object.fromEntries(game.dungeonToday.map(q => [q.id, q.status])),
     };
     const p = prev.current;
     prev.current = snap;
-    if (!p || p.today !== today || changeSource() !== 'local') return;
+    if (!p || p.today !== today) return;
+    for (const q of game.dungeonToday) {
+      if (p.dungeon[q.id] === q.status) continue;
+      if (q.status === 'complete') toast(`${q.icon} ${q.name} cleared!`);
+      if (q.status === 'missed') toast(`💔 ${q.name} missed${q.penalty ? ` · −${q.penalty} HP` : ''}`);
+    }
+    if (changeSource() !== 'local') return;
     if (snap.level > p.level) setLevelUp({ level: snap.level, title: game.title });
     for (const s of skills) {
       if (p.skills[s.id] && snap.skills[s.id].level > p.skills[s.id].level) toast(`${s.icon} ${s.name} reached Lv ${snap.skills[s.id].level}!`);

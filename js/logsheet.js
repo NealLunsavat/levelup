@@ -1,6 +1,7 @@
 // The "log an activity" sheet: pick what you did, fill a short form, earn XP.
 import { html, useState } from '../vendor/preact-htm.js';
 import { KINDS, logXP } from './game.js';
+import { MENTAL_RESET_BONUS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER } from './rpgMath.js';
 import { put, remove } from './store.js';
 import { Sheet, useApp } from './components.js';
 import { todayStr } from './util.js';
@@ -8,28 +9,44 @@ import { todayStr } from './util.js';
 export const ART_FOCUS = ['Proportions', 'Faces', 'Eyes', 'Angles', 'Hands', 'Poses', 'Hair', 'Anatomy', 'Line art', 'Shading'];
 const WORKOUT_TYPES = ['Push', 'Pull', 'Legs', 'Upper body', 'Lower body', 'Full body', 'Cardio', 'Other'];
 const PLATFORMS = ['DoorDash', 'Spark Driver', 'Other'];
+const CONTENT_TYPES = ['Shoot (Apple Log 2)', 'Edit (DaVinci Resolve)', 'Other'];
+const GAMES = ['Cyberpunk 2077', 'Call of Duty', 'Other'];
+
+// Starting values for each kind's choice fields.
+const KIND_DEFAULTS = {
+  shift: { platform: 'DoorDash' },
+  workout: { category: 'Push' },
+  content: { category: 'Edit (DaVinci Resolve)' },
+  rest: { game: 'Cyberpunk 2077' },
+};
 
 // Which fields each kind keeps, and which of those are required.
 const FIELDS = {
   payment: ['debtId', 'amount'],
   shift: ['platform', 'amount', 'hours', 'miles'],
-  study: ['minutes', 'topic'],
+  itshift: ['hours', 'pay', 'note'],
+  study: ['minutes', 'topic', 'stealth'],
   quiz: ['score', 'topic'],
   draw: ['minutes', 'focus', 'note'],
+  content: ['category', 'minutes', 'note'],
   workout: ['category', 'minutes', 'note'],
   pr: ['exercise', 'weight', 'reps'],
   meal: ['name', 'calories', 'protein'],
+  rest: ['game', 'minutes'],
   activity: ['minutes', 'note'],
 };
 const REQUIRED = {
   payment: { debtId: 'a debt', amount: 'an amount' },
   shift: { amount: 'what you earned' },
+  itshift: { hours: 'hours worked' },
   study: { minutes: 'minutes' },
   quiz: { score: 'your score' },
   draw: { minutes: 'minutes' },
+  content: { minutes: 'minutes' },
   workout: { minutes: 'minutes' },
   pr: { exercise: 'the exercise', weight: 'the weight' },
   meal: { name: 'what you ate' },
+  rest: { minutes: 'minutes' },
   activity: { minutes: 'minutes' },
 };
 
@@ -49,9 +66,9 @@ export function LogSheet({ initial, onClose }) {
   const [f, setF] = useState(() => rec ? { ...rec } : {
     date: todayStr(),
     debtId: initial.debtId ?? ctx.game.bosses.find(b => !b.defeatedOn)?.id ?? '',
-    platform: 'DoorDash',
-    category: 'Push',
     focus: [],
+    // Studying while the IT shift is open defaults to a Stealth Mission.
+    stealth: initial.stealth ?? ctx.game.dungeonToday.some(q => q.id === 'it' && q.status === 'active'),
   });
   const [error, setError] = useState('');
   const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
@@ -73,20 +90,26 @@ export function LogSheet({ initial, onClose }) {
 
   const skill = ctx.skillMap[KINDS[kind].skill ?? skillId];
   const label = kind === 'activity' ? `${skill?.name ?? 'Custom'} session` : KINDS[kind].label;
-  const preview = logXP({ ...f, kind });
+  const v = { ...KIND_DEFAULTS[kind], ...f };
+  // Preview the XP after today's buffs and a Stealth Mission bonus, matching what buildGame will award.
+  const it = ctx.game.dungeonToday.find(q => q.id === 'it');
+  const stealthTotal = (it?.stealthMinutes ?? 0) + (Number(v.minutes) || 0) - (rec?.stealth ? Number(rec.minutes) || 0 : 0);
+  const stealthBoost = kind === 'study' && v.stealth && it?.status === 'active' && stealthTotal >= STEALTH_MIN_MINUTES;
+  const buffBoost = v.date === ctx.game.today && ctx.game.buffs.length > 0;
+  const preview = Math.round(logXP({ ...v, kind }) * (stealthBoost ? STEALTH_MULTIPLIER : 1) * (buffBoost ? MENTAL_RESET_BONUS : 1));
 
   function save(e) {
     e.preventDefault();
     const missing = Object.entries(REQUIRED[kind]).filter(([k]) => {
-      const v = f[k];
-      return v === '' || v == null || (typeof v === 'number' && v <= 0 && k !== 'score');
+      const x = v[k];
+      return x === '' || x == null || (typeof x === 'number' && x <= 0 && k !== 'score');
     });
     if (missing.length) return setError(`Add ${missing.map(([, name]) => name).join(' and ')}.`);
-    const out = { type: 'log', kind, skill: skill?.id ?? skillId, date: f.date || todayStr(), createdAt: rec?.createdAt ?? Date.now() };
+    const out = { type: 'log', kind, skill: skill?.id ?? skillId, date: v.date || todayStr(), createdAt: rec?.createdAt ?? Date.now() };
     if (rec) out.id = rec.id;
-    for (const k of FIELDS[kind]) if (f[k] !== '' && f[k] != null) out[k] = f[k];
-    const saved = put(out);
-    ctx.toast(rec ? 'Saved' : `+${logXP(saved)} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}`);
+    for (const k of FIELDS[kind]) if (v[k] !== '' && v[k] != null && v[k] !== false) out[k] = v[k];
+    put(out);
+    ctx.toast(rec ? 'Saved' : `+${preview} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}`);
     onClose();
   }
 
@@ -97,29 +120,43 @@ export function LogSheet({ initial, onClose }) {
     onClose();
   }
 
-  const props = { f, set };
+  const props = { f: v, set };
   return html`<${Sheet} title=${(rec ? 'Edit · ' : '') + label} onClose=${onClose}>
     <form class="form" onSubmit=${save}>
       ${kind === 'payment' && html`<${PaymentFields} ...${props} onClose=${onClose} />`}
       ${kind === 'shift' && html`
-        <${Choice} label="Platform" options=${PLATFORMS} value=${f.platform} onChange=${v => set('platform', v)} />
+        <${Choice} label="Platform" options=${PLATFORMS} value=${v.platform} onChange=${x => set('platform', x)} />
         <div class="row">
           <${Num} label="Earned" k="amount" prefix="$" ...${props} />
           <${Num} label="Hours" k="hours" ...${props} />
           <${Num} label="Miles" k="miles" ...${props} />
         </div>`}
+      ${kind === 'itshift' && html`
+        <div class="row">
+          <${Num} label="Hours" k="hours" ...${props} />
+          <${Num} label="Pay (optional)" k="pay" prefix="$" ...${props} />
+        </div>
+        <${Text} label="Note" k="note" placeholder="e.g. LanceSoft help desk" ...${props} />`}
       ${kind === 'study' && html`
         <${Minutes} ...${props} />
-        <${Text} label="Chapter / topic" k="topic" placeholder="e.g. Ch. 7: Flexibility training" ...${props} />`}
+        <${Text} label="Chapter / topic" k="topic" placeholder="e.g. Ch. 7: Flexibility training" ...${props} />
+        <button type="button" class=${'toggle' + (v.stealth ? ' on' : '')} onClick=${() => set('stealth', !v.stealth)} aria-pressed=${!!v.stealth}>
+          <span class="toggle-dot"></span>
+          <span><b>🥷 Stealth Mission</b><br /><span class="tiny muted">Studied during your IT shift. 2 hours in one shift = 1.5× INT. Only counts if logged during the shift.</span></span>
+        </button>`}
       ${kind === 'quiz' && html`
         <${Num} label="Score" k="score" suffix="%" ...${props} />
         <${Text} label="Topic" k="topic" placeholder="e.g. Chapters 1–5 review" ...${props} />`}
       ${kind === 'draw' && html`
         <${Minutes} ...${props} />
-        <${Choice} label="Focus (pick any)" multi options=${ART_FOCUS} value=${f.focus || []} onChange=${v => set('focus', v)} />
+        <${Choice} label="Focus (pick any)" multi options=${ART_FOCUS} value=${v.focus || []} onChange=${x => set('focus', x)} />
         <${Text} label="Note" k="note" placeholder="What did you practice?" ...${props} />`}
+      ${kind === 'content' && html`
+        <${Choice} label="Type" options=${CONTENT_TYPES} value=${v.category} onChange=${x => set('category', x)} />
+        <${Minutes} ...${props} />
+        <${Text} label="Note" k="note" placeholder="e.g. Color graded leg day B-roll" ...${props} />`}
       ${kind === 'workout' && html`
-        <${Choice} label="Type" options=${WORKOUT_TYPES} value=${f.category} onChange=${v => set('category', v)} />
+        <${Choice} label="Type" options=${WORKOUT_TYPES} value=${v.category} onChange=${x => set('category', x)} />
         <${Minutes} ...${props} />
         <${Text} label="Note" k="note" placeholder="e.g. Bench 3×8 @ 155" ...${props} />`}
       ${kind === 'pr' && html`
@@ -129,11 +166,14 @@ export function LogSheet({ initial, onClose }) {
           <${Num} label="Reps" k="reps" ...${props} />
         </div>`}
       ${kind === 'meal' && html`<${MealFields} ...${props} />`}
+      ${kind === 'rest' && html`
+        <${Choice} label="Game" options=${GAMES} value=${v.game} onChange=${x => set('game', x)} />
+        <${Minutes} ...${props} />`}
       ${kind === 'activity' && html`
         <${Minutes} ...${props} />
         <${Text} label="Note" k="note" ...${props} />`}
 
-      <label class="field"><span>Date</span><input type="date" value=${f.date} max=${todayStr()} onInput=${e => set('date', e.target.value)} /></label>
+      <label class="field"><span>Date</span><input type="date" value=${v.date} max=${todayStr()} onInput=${e => set('date', e.target.value)} /></label>
 
       ${error && html`<p class="error">${error}</p>`}
       <div class="form-actions">
