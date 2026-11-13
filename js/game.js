@@ -4,8 +4,10 @@
 import { todayStr, addDays, dayOfWeek, sum, groupBy } from './util.js';
 import {
   AMBUSH_GOLD, AMBUSH_HP_LOSS, AMBUSH_XP, CAREER_QUEST_XP, CYBERPSYCHOSIS_XP, DUNGEON_START, HP_REGEN_PER_QUEST,
-  MAX_HP, MAX_STRESS, MENTAL_RESET_BONUS, PERFECT_NUTRITION_XP, STEALTH_MULTIPLIER, clampHP, goldFromLog, levelFromXP,
+  MAX_HP, MAX_STRESS, MENTAL_RESET_BONUS, OPERATION_XP, PERFECT_NUTRITION_XP, PRIME_BONUS_XP, STEALTH_MULTIPLIER,
+  TARGET_XP, clampHP, goldFromLog, levelFromXP,
 } from './rpgMath.js';
+import { evaluateGoals } from './goals.js';
 import { dungeonFor, evaluateQuest } from './dungeon.js';
 import { computeBurnout, nutritionOf } from './burnout.js';
 import { encountersFor } from './nasm.js';
@@ -85,7 +87,7 @@ export function questProgress(q, dayLogs) {
 
 // ---- Everything the UI shows, computed in one pass ----
 
-export function buildGame({ logs, quests, debts, loot, ambushes, career, settings, skills }, today = todayStr(), now = Date.now()) {
+export function buildGame({ logs, quests, debts, loot, ambushes, career, goals = [], targets = [], settings, skills }, today = todayStr(), now = Date.now()) {
   const byDate = groupBy(logs, l => l.date);
   const dayAt = date => Math.max(0, ...(byDate[date] || []).map(l => l.createdAt));
 
@@ -192,8 +194,20 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, setting
     }
     if (defeated) add(defeated.date, 'finance', BONUS.boss, defeated.createdAt);
     const balance = Number(d.balance) || 0;
-    return { ...d, paid, remaining: Math.max(0, balance - paid), pct: balance ? Math.min(1, paid / balance) : 0, defeatedOn: defeated?.date ?? null };
+    return {
+      ...d, paid, remaining: Math.max(0, balance - paid), pct: balance ? Math.min(1, paid / balance) : 0,
+      defeatedOn: defeated?.date ?? null, defeatedAt: defeated?.createdAt ?? null,
+    };
   }).sort((a, b) => !!a.defeatedOn - !!b.defeatedOn || a.remaining - b.remaining);
+
+  // Goals: a bounty for every target cleared (more if it was the prime target), and a big one for the operation.
+  const operations = evaluateGoals(goals, targets, bosses);
+  for (const op of operations) {
+    for (const t of op.targets) {
+      if (t.done) add(todayStr(new Date(t.doneAt)), op.skill, TARGET_XP + (t.inOrder ? PRIME_BONUS_XP : 0), t.doneAt);
+    }
+    if (op.complete) add(todayStr(new Date(op.completedAt)), op.skill, OPERATION_XP, op.completedAt);
+  }
 
   // 6. Streak = consecutive days with every side quest cleared. Days with none scheduled don't break it,
   // and today only counts once it's cleared (it isn't "missed" until it's over).
@@ -259,6 +273,7 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, setting
     encounters,
     pendingAmbush,
     career: evaluateCareer(career, attributes),
+    goals: operations,
     attributes,
     attributesAgo,
     skillXP,
@@ -284,6 +299,8 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, setting
       activeDays: Object.keys(byDate).length,
       ambushWins: ambushes.filter(a => a.correct).length,
       lootBought: purchases.length,
+      primeClears: sum(operations, op => op.targets.filter(t => t.inOrder).length),
+      opsComplete: operations.filter(op => op.complete).length,
     },
   };
 }
@@ -311,4 +328,6 @@ export const ACHIEVEMENTS = [
   { icon: '🥷', name: 'Ambush Survivor', desc: 'Win 10 NASM Ambushes', test: g => g.totals.ambushWins >= 10 },
   { icon: '🛍️', name: 'First Loot', desc: 'Buy something from the Loot Shop', test: g => g.totals.lootBought >= 1 },
   { icon: '🎓', name: 'Certified', desc: 'Unlock the first Career node', test: g => g.career.nodes[0].status === 'unlocked' },
+  { icon: '🎯', name: 'Sharpshooter', desc: 'Take down a prime target', test: g => g.totals.primeClears >= 1 },
+  { icon: '🏁', name: 'Mission Accomplished', desc: 'Complete a final goal', test: g => g.totals.opsComplete >= 1 },
 ];

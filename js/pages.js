@@ -5,6 +5,7 @@ import { put, remove } from './store.js';
 import { AttributeGrid, Bar, BuildRadar, Card, Empty, LogList, PlayerCard, Sheet, SkillGrid, Stat, useApp } from './components.js';
 import { QuestBoard } from './questboard.js';
 import { CareerQuests } from './skilltree.js';
+import { PrimeTargets } from './goalspage.js';
 import { haptic, play } from './fx.js';
 import { PERFECT_NUTRITION_XP } from './rpgMath.js';
 import { ART_FOCUS, Num, Text } from './logsheet.js';
@@ -21,6 +22,7 @@ export function Home() {
     ${game.cyberpsychosis && html`<div class="banner danger">🧠 <b>CYBERPSYCHOSIS</b>: −20% XP${game.shopLockedUntil ? ' and the Loot Shop is locked' : ''}. Cure it with an 8-hour sleep or a perfect nutrition day.</div>`}
 
     <${QuickLog} />
+    <${PrimeTargets} />
     <${QuestBoard} />
     <${CareerQuests} home />
 

@@ -771,3 +771,103 @@ input::-webkit-date-and-time-value { text-align: left; }
 
 kbd { font-family: var(--mono); font-size: 13px; padding: 2px 8px; min-width: 28px; text-align: center; color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent); }
 .side-foot { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+
+/* ---------- Goals: operations and the hit list ---------- */
+
+.op, .target, .prime-card {
+  --edge: var(--line);
+  --fill: var(--surface);
+  position: relative; isolation: isolate;
+  background: var(--edge);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  transition: --edge 0.25s, transform 0.2s;
+}
+.op::before, .target::before, .prime-card::before {
+  content: ''; position: absolute; inset: 1px; z-index: -1;
+  background: var(--fill);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+/* Sheets opened from a page shouldn't inherit the page's staggered entrance delay. */
+.page > .overlay, .page > .levelup { animation-delay: 0s; }
+
+.seg {
+  display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+}
+.seg a { padding: 11px 8px; text-align: center; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); transition: color 0.15s, background 0.15s; }
+.seg a:hover { color: var(--text); }
+.seg a.on { background: var(--accent); color: var(--accent-ink); }
+
+.op {
+  --cut: 20px; --edge: color-mix(in srgb, var(--accent) 55%, var(--line));
+  --fill: linear-gradient(160deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface) 55%);
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 16px;
+}
+.op.complete { --edge: var(--good); --fill: linear-gradient(160deg, color-mix(in srgb, var(--good) 10%, var(--surface)), var(--surface) 55%); }
+.op-head { display: flex; align-items: flex-start; gap: 8px; }
+.op-kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; color: var(--accent); text-transform: uppercase; }
+.op.complete .op-kicker { color: var(--good); }
+.op-title { font-size: 26px; margin-top: 2px; overflow-wrap: anywhere; }
+.op-progress { display: flex; align-items: center; gap: 14px; }
+.op-pct { font-family: var(--mono); font-size: 46px; line-height: 1; color: var(--accent); text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 50%, transparent); }
+.op-pct span { font-size: 22px; }
+.op.complete .op-pct { color: var(--good); }
+.op-bars { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.stackbar { display: flex; gap: 3px; height: 18px; }
+.stackbar .part { flex: 1 1 0; min-width: 8px; overflow: hidden; background: color-mix(in srgb, var(--text) 9%, transparent); clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.stackbar .part-fill { height: 100%; background: var(--cyan); transform-origin: left; transition: width 0.7s cubic-bezier(.2, .8, .2, 1); animation: fill-in 1s cubic-bezier(.2, .8, .2, 1) backwards; }
+.stackbar .part.prime .part-fill { background: var(--accent); }
+.stackbar .part.done .part-fill { background: var(--good); }
+.op-nums { font-family: var(--mono); font-size: 14px; color: var(--muted); }
+.op-nums b { color: var(--text); font-weight: 400; }
+.op-empty { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+
+/* The stack: the prime target is widest and brightest; lower ranks step in and dim. */
+.hitlist { display: flex; flex-direction: column; gap: 8px; }
+.target {
+  --cut: 12px; --fill: var(--surface-2);
+  display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px; overflow: hidden;
+  margin-inline: calc(var(--depth, 0) * 7px); opacity: calc(1 - var(--depth, 0) * 0.09);
+}
+.target.prime { --edge: var(--accent); --fill: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--surface-2)), var(--surface-2) 60%); }
+.target.prime::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 35%; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 12%, transparent), transparent);
+  animation: beam 3s linear infinite;
+}
+.rank, .reticle { position: relative; width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center; }
+.rank { background: var(--surface-3); clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px)); }
+.rank b, .reticle b { font-family: var(--mono); font-weight: 400; font-size: 20px; }
+.rank b { color: var(--muted); }
+.reticle b { color: var(--accent); text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent); }
+.reticle svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.reticle-ring { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 22 11; transform-box: fill-box; transform-origin: center; animation: spin 8s linear infinite; }
+.reticle-ticks { fill: none; stroke: var(--accent); stroke-width: 2; animation: blink 1.6s steps(2) infinite; }
+.target-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.target-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.target-tier { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.target.prime .target-tier, .prime-card .target-tier { color: var(--accent); }
+.target-bounty { font-family: var(--mono); font-size: 12px; color: var(--accent); white-space: nowrap; }
+.target-title { font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 0.04em; overflow-wrap: anywhere; }
+.target.prime .target-title { font-size: 21px; }
+.target-nums { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.target-actions { display: flex; align-items: center; gap: 4px; }
+.icon-btn:disabled { opacity: 0.25; pointer-events: none; }
+.autorank { gap: 6px; }
+.chip-btn.mini { min-height: 30px; padding: 0 10px; font-size: 12px; }
+
+.cleared { display: flex; flex-direction: column; border-top: 1px dashed var(--line); padding-top: 10px; }
+.cleared-head { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; color: var(--good); margin-bottom: 4px; }
+.cleared-row { display: grid; grid-template-columns: 24px 1fr auto auto auto; gap: 10px; align-items: center; padding: 6px 0; }
+.stamp { width: 24px; height: 24px; display: grid; place-items: center; background: var(--good); color: var(--bg); font-weight: 700; font-size: 13px; animation: stamp 0.5s cubic-bezier(.2, 1.6, .4, 1) backwards; }
+.cleared-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--good); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes stamp { from { transform: scale(2.6) rotate(-20deg); opacity: 0; } }
+
+.prime-card {
+  --cut: 14px; --edge: var(--accent);
+  --fill: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--surface) 60%);
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+}
+.goal-teaser { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--muted); font-size: 15px; transition: border-color 0.15s, color 0.15s; }
+.goal-teaser b { color: var(--text); }
+.goal-teaser:hover { border-color: var(--accent); color: var(--text); }

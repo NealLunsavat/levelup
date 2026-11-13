@@ -79,3 +79,9 @@ export const AMBUSH_HP_LOSS = 5;
 // ---- Career ----
 
 export const CAREER_QUEST_XP = 40;
+
+// ---- Goals ----
+
+export const TARGET_XP = 150; // bounty for clearing any target (sub-goal)
+export const PRIME_BONUS_XP = 100; // extra for clearing it while it's the prime (top-ranked) target
+export const OPERATION_XP = 1000; // finishing a whole final goal

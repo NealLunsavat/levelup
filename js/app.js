@@ -8,6 +8,8 @@ import { THEMES, applyTheme, getThemePref, resolveTheme, setThemePref } from './
 import { Ambush } from './ambush.js';
 import { CareerPage } from './skilltree.js';
 import { Shop } from './shop.js';
+import { GoalsPage } from './goalspage.js';
+import { OPERATION_XP, PRIME_BONUS_XP, TARGET_XP } from './rpgMath.js';
 import { LogSheet } from './logsheet.js';
 import { Home, SkillPage, SkillsPage, Stats } from './pages.js';
 import { Settings } from './settings.js';
@@ -22,6 +24,8 @@ function snapshot() {
     customSkills: all('skill').sort((a, b) => a.updatedAt - b.updatedAt),
     loot: all('loot'),
     ambushes: all('ambush'),
+    goals: all('goal').sort((a, b) => a.createdAt - b.createdAt),
+    targets: all('target'),
     career: get('career') ?? {},
     settings: get('settings') ?? {},
   };
@@ -59,6 +63,7 @@ const ICONS = {
   home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
   skills: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   stats: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
+  goals: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 1v6M12 17v6M1 12h6M17 12h6',
   career: 'M12 2.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM5 17.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM19 17.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM12 6.5v5M12 11.5l-6.2 6.2M12 11.5l6.2 6.2',
   shop: 'M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8zM9 8V6a3 3 0 0 1 6 0v2',
   settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
@@ -67,8 +72,9 @@ const Icon = ({ name }) => html`<svg viewBox="0 0 24 24" fill="none" stroke="cur
 
 const NAV = [
   { href: '#/', label: 'Home', icon: 'home', match: r => r === '/' || r === '', tab: true },
+  { href: '#/goals', label: 'Goals', icon: 'goals', match: r => r === '/goals', tabMatch: r => r === '/goals' || r === '/career', tab: true },
+  { href: '#/career', label: 'Career', icon: 'career', match: r => r === '/career' },
   { href: '#/skills', label: 'Skills', icon: 'skills', match: r => r.startsWith('/skill') },
-  { href: '#/career', label: 'Career', icon: 'career', match: r => r === '/career', tab: true },
   { href: '#/shop', label: 'Loot Shop', short: 'Shop', icon: 'shop', match: r => r === '/shop', tab: true },
   { href: '#/stats', label: 'Stats', icon: 'stats', match: r => r === '/stats', tab: true },
   { href: '#/settings', label: 'Settings', icon: 'settings', match: r => r === '/settings' },
@@ -83,6 +89,7 @@ const SHORTCUTS = [
   ['3', 'Skill tree (Career)', '#/career'],
   ['4', 'Stats', '#/stats'],
   ['5', 'Skills', '#/skills'],
+  ['6', 'Goals (hit list)', '#/goals'],
   ['0', 'Settings', '#/settings'],
 ];
 
@@ -185,6 +192,7 @@ function App() {
     return kind && KINDS[kind] ? { kind } : null;
   });
   const [levelUp, setLevelUp] = useState(null);
+  const [opDone, setOpDone] = useState(null);
   const [help, setHelp] = useState(false);
   useShortcuts(() => setLogSheet({}), () => setHelp(h => !h));
 
@@ -219,6 +227,8 @@ function App() {
       skills: game.skillLevels,
       allClear: game.allClear,
       defeated: game.bosses.filter(b => b.defeatedOn).length,
+      cleared: new Set(game.goals.flatMap(op => op.cleared.map(t => t.id))),
+      opsDone: new Set(game.goals.filter(op => op.complete).map(op => op.id)),
       dungeon: Object.fromEntries(game.dungeonToday.map(q => [q.id, q.status])),
     };
     const p = prev.current;
@@ -253,6 +263,19 @@ function App() {
         toast(`🎉 All daily quests cleared! +${BONUS.allQuests} XP`);
         moments.push(['quest', 'double', 3]);
       }
+      for (const op of game.goals) {
+        for (const t of op.cleared) {
+          if (p.cleared.has(t.id)) continue;
+          toast(`🎯 Target eliminated: ${t.title} · +${TARGET_XP + (t.inOrder ? PRIME_BONUS_XP : 0)} XP`);
+          moments.push(['win', 'double', 3]);
+          if (op.prime) toast(`🔒 New prime target: ${op.prime.title}`);
+        }
+        if (op.complete && !p.opsDone.has(op.id)) {
+          setOpDone({ title: op.title, reward: op.reward });
+          celebrate();
+          moments.push(['levelup', 'heavy', 6]);
+        }
+      }
       if (snap.defeated > p.defeated) {
         toast(`⚔️ Debt boss defeated! +${BONUS.boss} XP`);
         moments.push(['levelup', 'heavy', 4]);
@@ -277,6 +300,7 @@ function App() {
   else if (route === '/stats') page = html`<${Stats} />`;
   else if (route === '/career') page = html`<${CareerPage} />`;
   else if (route === '/shop') page = html`<${Shop} />`;
+  else if (route === '/goals') page = html`<${GoalsPage} />`;
   else if (route === '/settings') page = html`<${Settings} />`;
   else page = html`<${Home} />`;
 
@@ -296,14 +320,24 @@ function App() {
       </aside>
       <main class="main">${page}</main>
       <nav class="tabbar">
-        ${TABS.slice(0, 2).map(n => html`<a href=${n.href} onClick=${() => fx.haptic()} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
+        ${TABS.slice(0, 2).map(n => html`<a href=${n.href} onClick=${() => fx.haptic()} class=${'tab' + ((n.tabMatch ?? n.match)(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
         <button class="tab-log" onClick=${() => { fx.feedback('tap'); ctx.openLog(); }} aria-label="Log activity"><span class="tab-log-hex">+</span></button>
-        ${TABS.slice(2).map(n => html`<a href=${n.href} onClick=${() => fx.haptic()} class=${'tab' + (n.match(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
+        ${TABS.slice(2).map(n => html`<a href=${n.href} onClick=${() => fx.haptic()} class=${'tab' + ((n.tabMatch ?? n.match)(route) ? ' active' : '')}><${Icon} name=${n.icon} />${n.short ?? n.label}</a>`)}
       </nav>
     </div>
     ${logSheet && html`<${LogSheet} initial=${logSheet} onClose=${() => setLogSheet(null)} />`}
     <${Ambush} />
     ${help && html`<${ShortcutHelp} onClose=${() => setHelp(false)} />`}
+    ${opDone && html`<div class="levelup" onClick=${() => setOpDone(null)}>
+      <div class="levelup-card granted">
+        <div class="levelup-rays"></div>
+        <div class="levelup-kicker">OPERATION COMPLETE</div>
+        <div class="granted-icon">🏁</div>
+        <div class="granted-name">${opDone.title}</div>
+        <p class="granted-text">+${OPERATION_XP.toLocaleString()} XP${opDone.reward ? ` · 🎁 You earned: ${opDone.reward}` : ''}</p>
+        <button class="btn primary">Mission accomplished</button>
+      </div>
+    </div>`}
     ${levelUp && html`<div class="levelup" onClick=${() => setLevelUp(null)}>
       <div class="levelup-card">
         <div class="levelup-rays"></div>

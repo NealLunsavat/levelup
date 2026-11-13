@@ -14,7 +14,8 @@ A free web app that turns your day into XP. It runs on iPhone, iPad and Mac from
 - **NASM Ambush**: surprise pop-quiz encounters during your IT shift
 - **Career Skill Tree**: Certified → The Floor → Book of Business → The 8-Week Program, each unlocking daily career quests
 - **Loot Shop**: spend Gold on real things from your wishlist (10 Gold = $1)
-- **Stats**: 14-day XP chart, attributes, stress log and 22 achievements
+- **Goals**: final goals broken into a ranked hit list of sub-goals, with a prime target on Home
+- **Stats**: 14-day XP chart, attributes, stress log and 24 achievements
 
 ## The Daily Dungeon
 
@@ -33,6 +34,23 @@ Each quest only counts if you log it **during its window** (or up to 60 minutes 
 - Every quest cleared heals **+5 HP**. HP never goes above 100.
 - Schedules, rewards and penalties live in `js/dungeon.js`.
 
+## Goals: operations and the hit list
+
+Each final goal is an **operation**. You break it into **targets** (sub-goals) and rank them in a stack: #1 is the **prime target**, then "on deck", then "queued". The Goals tab also holds the Career tree (switch at the top of the page).
+
+| Target type | How it's measured |
+|---|---|
+| 💳 Debt | Linked to a debt boss. Its balance is the target's HP, and every payment you log is an attack. |
+| 📈 Number | A number to reach (dollars saved, hours, pounds...). Update it with **+ Progress**. |
+| ✅ Milestone | Done or not done. |
+
+- **Ranking**: move targets with ▲▼, or auto-rank money targets by smallest, largest or highest APR.
+- **Rewards**: +150 XP per target, **+100 more if it was the prime target** when it fell (everything ranked above it was already cleared), and +1,000 XP for finishing the operation. Debt targets still pay the usual debt-boss XP and Gold too.
+- **Operation progress**: when every target is money, it's dollars cleared out of the total (so four cards adding up to $8,000 show as one $8,000 goal). Otherwise it's the average of the targets.
+- **Optional extras**: a deadline (shows a countdown and the pace needed to finish on time) and a reward you're promising yourself.
+- The prime target of each operation shows on Home with a one-tap **Attack / + Progress / Done** button.
+- Numbers live in `js/rpgMath.js` (`TARGET_XP`, `PRIME_BONUS_XP`, `OPERATION_XP`).
+
 ## Look and feel
 
 - **Themes** (Settings → This device). *Auto* follows your day: 🩸 Iron Dungeon (red/black) from 5:00 AM, ☀️ Daylight (bright, readable in the car) from 9:30 AM, 🌃 Night City (cyan/purple) from 8:00 PM. You can also lock in any theme, including the original ⚡ Neon.
@@ -40,7 +58,7 @@ Each quest only counts if you log it **during its window** (or up to 60 minutes 
 - **Haptics**: a tap you can feel on iPhone (iOS 18+; iPhones have no vibration API for web apps, so this uses the native switch control's haptic). Android uses `navigator.vibrate`.
 - **Character build**: a radar chart of your five attributes on the Stats and Skills pages, outlined against your build from 4 weeks ago.
 - **Quick log** bar on Home for one-tap Shift / Study / Workout / Meal / Sleep.
-- **Keyboard shortcuts** (Mac): `1` Quest board, `2` Loot Shop, `3` Skill tree, `4` Stats, `5` Skills, `0` Settings, `N` log something, `?` list. They work with or without ⌘ in the Dock app.
+- **Keyboard shortcuts** (Mac): `1` Quest board, `2` Loot Shop, `3` Skill tree, `4` Stats, `5` Skills, `6` Goals, `0` Settings, `N` log something, `?` list. They work with or without ⌘ in the Dock app.
 - **App shortcuts**: right-click the Dock icon (Chrome-installed on Mac) or long-press on Android for Log shift / Log study / Log workout / Loot Shop. iPhone doesn't support these for web apps, so use the Quick log bar there.
 
 ## Levels and Gold
@@ -183,6 +201,7 @@ Good to know:
 | `js/nasm.js`, `js/ambush.js` | NASM question bank, encounter timing, and the Ambush pop-up |
 | `js/career.js`, `js/skilltree.js` | Career nodes and quest packs, and the Career page |
 | `js/shop.js` | The Loot Shop |
+| `js/goals.js`, `js/goalspage.js` | Goal scoring, and the Goals page with its ranked hit list |
 | `js/fx.js`, `js/theme.js` | Sound effects and haptics, and the time-based themes |
 | `js/sync.js` | Optional Supabase sync |
 | `js/app.js` | Navigation, layout, level-up celebrations |

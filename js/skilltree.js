@@ -4,7 +4,7 @@ import { CAREER_NODES } from './career.js';
 import { CAREER_QUEST_XP } from './rpgMath.js';
 import { put, remove } from './store.js';
 import { feedback } from './fx.js';
-import { Card, Empty, celebrate, useApp } from './components.js';
+import { Card, Empty, GoalTabs, celebrate, useApp } from './components.js';
 import { fmtDate, todayStr } from './util.js';
 
 // Where each node sits in the tree drawing (viewBox 300 × 490).
@@ -24,6 +24,7 @@ export function CareerPage() {
   const node = nodes.find(n => n.id === selected);
   return html`<div class="page">
     <h1 class="page-title">Career</h1>
+    <${GoalTabs} current="career" />
     <p class="muted small">From NASM student to online coach. Each node unlocks once the one before it is unlocked and its requirements are met. Tap a node to see what it needs.</p>
     <div class="career-layout">
       <${Card} class="tree-card"><${SkillTree} nodes=${nodes} selected=${selected} onSelect=${setSelected} /><//>

@@ -275,3 +275,9 @@ export function BuildRadar() {
     </div>
   </div>`;
 }
+
+// Switch between the two long-term views that share the Goals tab.
+export const GoalTabs = ({ current }) => html`<nav class="seg" aria-label="Goal views">
+  <a href="#/goals" class=${current === 'goals' ? 'on' : ''} aria-current=${current === 'goals' ? 'page' : null}>🎯 Hit list</a>
+  <a href="#/career" class=${current === 'career' ? 'on' : ''} aria-current=${current === 'career' ? 'page' : null}>🌳 Career tree</a>
+</nav>`;
