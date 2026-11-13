@@ -100,21 +100,23 @@ export function remove(id) {
 
 // ---- Sync hooks ----
 
+// Returns how many records were new or newer than this device's copy.
 export function mergeRemote(list) {
-  let changed = false;
+  let changed = 0;
   for (const r of list) {
     if (!r?.id) continue;
     const local = records[r.id];
     if (!local || r.updatedAt > local.updatedAt) {
       records[r.id] = r;
       dirty.delete(r.id);
-      changed = true;
+      changed++;
     } else if (r.updatedAt === local.updatedAt) {
       dirty.delete(r.id);
     }
   }
   if (changed) save('remote');
   else localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
+  return changed;
 }
 
 export const pendingChanges = () => [...dirty].map(id => records[id]).filter(Boolean);

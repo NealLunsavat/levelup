@@ -15,14 +15,15 @@ export function Ambush() {
 
   if (!fight) {
     if (!enc) return null;
-    return html`<div class="ambush-banner" role="alert">
+    // The whole banner is one big button, so a tap anywhere on it starts the fight.
+    return html`<button type="button" class="ambush-banner" onClick=${() => setFight({ enc, ...questionFor(enc.id, data.ambushes), choice: null })}>
       <span class="ambush-icon">⚔️</span>
-      <div class="grow">
+      <span class="grow ambush-text">
         <b>Random Encounter!</b>
-        <div class="tiny muted">A NASM question blocks your path. Win +${AMBUSH_XP} INT and +${AMBUSH_GOLD} Gold, or lose ${AMBUSH_HP_LOSS} HP.</div>
-      </div>
-      <button class="btn small primary" onClick=${() => setFight({ enc, ...questionFor(enc.id, data.ambushes), choice: null })}>Fight</button>
-    </div>`;
+        <span class="tiny muted">A NASM question blocks your path. Win +${AMBUSH_XP} INT and +${AMBUSH_GOLD} Gold, or lose ${AMBUSH_HP_LOSS} HP.</span>
+      </span>
+      <span class="btn small primary">Fight</span>
+    </button>`;
   }
 
   const { question, order, choice } = fight;

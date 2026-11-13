@@ -1,6 +1,6 @@
 // Service worker: makes the app open instantly and work offline.
 // When you change any app file, bump CACHE so every device picks up the new version.
-const CACHE = 'levelup-v7';
+const CACHE = 'levelup-v8';
 const SHELL = [
   './',
   'index.html',

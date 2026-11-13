@@ -978,3 +978,6 @@ kbd { font-family: var(--mono); font-size: 13px; padding: 2px 8px; min-width: 28
   100% { transform: scaleY(0.05); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .crit-fx { background: rgba(255, 213, 74, 0.15); } }
+
+button.ambush-banner { text-align: left; cursor: pointer; }
+.ambush-text { display: flex; flex-direction: column; gap: 2px; }

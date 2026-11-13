@@ -8,7 +8,9 @@ const TABLE = 'levelup_records';
 
 let client = null;
 let running = null;
-const state = { status: 'off', user: null, lastSync: null, error: '' }; // status: off | signed-out | syncing | ok | error
+// status: off | signed-out | syncing | ok | error. `report` says what the last sync did.
+const state = { status: 'off', user: null, lastSync: null, error: '', report: null };
+const SYNC_TIMEOUT = 45000;
 const listeners = new Set();
 
 export const syncState = () => state;
@@ -35,7 +37,15 @@ async function getClient() {
   if (!url || !key) return null;
   if (!client) {
     const { createClient } = await import(SUPABASE_JS);
-    client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'levelup:auth' } });
+    client = createClient(url, key, {
+      auth: {
+        persistSession: true, autoRefreshToken: true, storageKey: 'levelup:auth',
+        // Skip the cross-tab browser lock: if another tab or a frozen page holds it, every sync hangs forever.
+        lock: (name, timeout, fn) => fn(),
+      },
+      // Never let the browser answer a sync request from its cache.
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
+    });
   }
   return client;
 }
@@ -91,7 +101,15 @@ export async function signOut() {
 }
 
 export function syncNow() {
-  if (!running) running = doSync().finally(() => { running = null; });
+  if (!running) {
+    // A sync that stalls (bad connection, sleeping tab) is abandoned so the next one can run.
+    const timeout = new Promise(resolve => setTimeout(() => resolve('timeout'), SYNC_TIMEOUT));
+    running = Promise.race([doSync(), timeout])
+      .then(result => {
+        if (result === 'timeout') setState({ status: 'error', error: 'Sync timed out. Check your connection and tap Sync now.' });
+      })
+      .finally(() => { running = null; });
+  }
   return running;
 }
 
@@ -103,16 +121,15 @@ async function doSync() {
   if (!session) return setState({ status: 'signed-out', user: null });
   setState({ status: 'syncing', error: '' });
   try {
-    // 1. Pull everything changed on the server since last time (with a small overlap; merging is idempotent).
-    const cfg = getConfig();
-    const since = cfg.cursor ? new Date(Date.parse(cfg.cursor) - 5000).toISOString() : '1970-01-01T00:00:00Z';
-    let newest = cfg.cursor ?? null;
+    // 1. Pull every record from the cloud and merge it (newest edit wins, so repeating this is harmless).
+    // The whole save is small, and always pulling all of it means a device can never get stuck behind.
+    let pulled = 0;
+    let fresh = 0;
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await sb.from(TABLE).select('data, server_ts').gt('server_ts', since).order('server_ts').range(from, from + 999);
+      const { data, error } = await sb.from(TABLE).select('data').order('id').range(from, from + 999);
       if (error) throw error;
-      mergeRemote(data.map(r => r.data));
-      const last = data.at(-1)?.server_ts;
-      if (last && (!newest || Date.parse(last) > Date.parse(newest))) newest = last;
+      pulled += data.length;
+      fresh += mergeRemote(data.map(r => r.data));
       if (data.length < 1000) break;
     }
     // 2. Push this device's unsynced changes. The server ignores any that are older than what it has.
@@ -124,8 +141,7 @@ async function doSync() {
       if (error) throw error;
       markSynced(chunk);
     }
-    saveConfig({ ...getConfig(), cursor: newest });
-    setState({ status: 'ok', user: session.user, lastSync: Date.now() });
+    setState({ status: 'ok', user: session.user, lastSync: Date.now(), report: { pulled, fresh, sent: changes.length } });
   } catch (err) {
     setState({ status: 'error', error: err.message || String(err) });
   }

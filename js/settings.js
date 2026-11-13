@@ -345,6 +345,7 @@ function SyncCard() {
       <div class="sync-status"><span class=${'sync-dot ' + st.status}></span><b>${label}</b>
         <span class="muted small">${st.user?.email}${st.lastSync ? ` · last synced ${new Date(st.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}</span></div>
       ${st.error && html`<p class="error">${st.error}</p>`}
+      ${st.report && html`<p class="muted small">Last sync: found <b>${st.report.pulled}</b> records in the cloud (${st.report.fresh} new to this device) and sent ${st.report.sent} from this device.</p>`}
       <div class="form-actions">
         <button class="btn ghost" onClick=${run(() => sync.signOut())}>Sign out</button>
         <button class="btn primary grow" disabled=${busy || st.status === 'syncing'} onClick=${run(async () => { await sync.syncNow(); toast('Synced'); })}>Sync now</button>
