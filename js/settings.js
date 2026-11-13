@@ -58,7 +58,7 @@ function DeviceCard() {
         ${options.map(([id, label]) => html`<button type="button" class=${'chip-btn' + (themePref === id ? ' on' : '')} onClick=${() => setThemePref(id)}>${label}</button>`)}
       </div>
     </div>
-    <p class="muted small">Auto follows your day: Iron Dungeon red from 5:00 AM, bright Daylight from 9:30 AM for driving, and Night City from 8:00 PM.</p>
+    <p class="muted small">Auto follows your day: Iron Dungeon red from 4:00 AM, Neon from 9:00 AM, and Night City from 5:00 PM.</p>
     <button type="button" class=${'toggle' + (prefs.sound ? ' on' : '')} onClick=${() => toggle('sound')} aria-pressed=${prefs.sound}>
       <span class="toggle-dot"></span>
       <span><b>🔊 Sound effects</b><br /><span class="tiny muted">Retro blips for logs, quests and level-ups. They follow your iPhone's silent switch and won't pause your music.</span></span>

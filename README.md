@@ -72,7 +72,7 @@ Each final goal is an **operation**. You break it into **targets** (sub-goals) a
 
 ## Look and feel
 
-- **Themes** (Settings → This device). *Auto* follows your day: 🩸 Iron Dungeon (red/black) from 5:00 AM, ☀️ Daylight (bright, readable in the car) from 9:30 AM, 🌃 Night City (cyan/purple) from 8:00 PM. You can also lock in any theme, including the original ⚡ Neon.
+- **Themes** (Settings → This device). *Auto* follows your day: 🩸 Iron Dungeon (red/black) from 4:00 AM, ⚡ Neon (yellow) from 9:00 AM, 🌃 Night City (cyan/purple) from 5:00 PM. You can also lock in any one of them.
 - **Sound effects** are synthesized retro blips (no audio files) for logs, quests, ambushes, purchases and a fanfare for level-ups. They respect the iPhone's silent switch and mix with your music.
 - **Haptics**: a tap you can feel on iPhone (iOS 18+; iPhones have no vibration API for web apps, so this uses the native switch control's haptic). Android uses `navigator.vibrate`.
 - **Character build**: a radar chart of your five attributes on the Stats and Skills pages, outlined against your build from 4 weeks ago.
