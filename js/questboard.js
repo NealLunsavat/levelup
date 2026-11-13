@@ -1,7 +1,10 @@
 // The Daily Dungeon quest board: today's time-gated quests, locking and unlocking with the clock.
 import { html } from '../vendor/preact-htm.js';
-import { ATTRIBUTES, KINDS } from './game.js';
+import { ATTRIBUTES, KINDS, prepId } from './game.js';
 import { STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER, HP_REGEN_PER_QUEST } from './rpgMath.js';
+import { OVERDRIVE_QUESTS } from './dungeon.js';
+import { put } from './store.js';
+import { feedback } from './fx.js';
 import { Bar, Card, Empty, useApp } from './components.js';
 import { dayOfWeek } from './util.js';
 
@@ -20,18 +23,35 @@ export function QuestBoard() {
   const quests = game.dungeonToday;
   if (!quests.length) {
     return html`<${Card} title="⚔️ Daily Dungeon">
-      <${Empty}>The dungeon is closed on weekends. Rest up; side quests still count.<//>
+      <${Empty}>The dungeon is closed today. Rest up; daily and weekly quests still count.<//>
     <//>`;
   }
   const cleared = quests.filter(q => q.status === 'complete').length;
+  const dow = dayOfWeek(game.today);
+  const core = quests.filter(q => OVERDRIVE_QUESTS.includes(q.id));
+  const coreDone = core.filter(q => q.status === 'complete').length;
   return html`<${Card} title="⚔️ Daily Dungeon" right=${html`<span class="muted small">${cleared}/${quests.length} cleared</span>`}>
-    <p class="muted small">${dayOfWeek(game.today) === 5 ? 'Friday shift schedule.' : 'Mon–Thu schedule.'} Log each quest during its window to clear it.</p>
+    <p class="muted small">${dow === 5 ? 'Friday shift schedule.' : dow === 0 ? 'Sunday: just tomorrow’s prep.' : 'Mon–Thu schedule.'} Log each quest during its window to clear it.</p>
+    ${core.length === OVERDRIVE_QUESTS.length && html`<div class=${'overdrive-meter' + (game.overdrive ? ' on' : '')}>
+      <span>⚡ ${game.overdrive ? 'SANDEVISTAN OVERDRIVE ACTIVE · 2× XP until midnight' : `Overdrive ${coreDone}/${core.length}`}</span>
+      ${!game.overdrive && html`<span class="pips">${core.map(q => html`<i class=${q.status === 'complete' ? 'on' : q.status === 'missed' ? 'miss' : ''} title=${q.name}></i>`)}</span>
+        <span class="tiny muted">Clear the first four for 2× XP until midnight</span>`}
+    </div>`}
     <div class="dungeon">${quests.map(q => html`<${DungeonQuest} q=${q} key=${q.id} />`)}</div>
   <//>`;
 }
 
 function DungeonQuest({ q }) {
-  const { game, openLog } = useApp();
+  const { game, data, openLog } = useApp();
+  // Tick or untick one item on a checklist quest (like the nightly Inventory Management).
+  const tick = c => {
+    const rec = data.preps.find(p => p.date === q.date);
+    const items = { ...(rec?.items ?? {}) };
+    if (items[c.id]) delete items[c.id];
+    else items[c.id] = Date.now();
+    put({ ...(rec ?? {}), id: prepId(q.date), type: 'prep', date: q.date, items });
+    feedback('tick');
+  };
   const now = game.now;
   const open = q.status === 'active';
   const overtime = open && now > q.end;
@@ -49,7 +69,7 @@ function DungeonQuest({ q }) {
     q.gold && `+${q.gold} Gold`,
     q.note,
     q.buff,
-    `+${HP_REGEN_PER_QUEST} HP`,
+    `+${q.heal ?? HP_REGEN_PER_QUEST} HP`,
   ].filter(Boolean);
 
   return html`<div class=${'dq ' + q.status}>
@@ -68,6 +88,12 @@ function DungeonQuest({ q }) {
           ${rewards.map(r => html`<span class="reward">${r}</span>`)}
           ${q.penalty > 0 && html`<span class="reward bad">Miss: −${q.penalty} HP</span>`}
         </div>`}
+
+      ${q.checklist && (open || q.status === 'complete') && html`<div class="checklist">
+        ${q.checklist.map(c => html`<button class=${'check-item' + (c.done ? ' on' : '')} disabled=${!open} aria-pressed=${c.done} onClick=${() => tick(c)}>
+          <span class="check-box">${c.done ? '✓' : ''}</span><span>${c.label}</span>
+        </button>`)}
+      </div>`}
 
       ${q.stealth && (open || q.status === 'complete') && html`<div class="stealth">
         <div class="stealth-head">

@@ -871,3 +871,110 @@ kbd { font-family: var(--mono); font-size: 13px; padding: 2px 8px; min-width: 28
 .goal-teaser { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--muted); font-size: 15px; transition: border-color 0.15s, color 0.15s; }
 .goal-teaser b { color: var(--text); }
 .goal-teaser:hover { border-color: var(--accent); color: var(--text); }
+
+/* ---------- Main Quest ---------- */
+
+.mainq {
+  --cut: 18px; --edge: var(--accent);
+  --fill: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface) 55%);
+  position: relative; isolation: isolate; background: var(--edge);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  display: flex; flex-direction: column; gap: 10px; padding: 16px;
+  transition: --edge 0.25s;
+}
+.mainq::before {
+  content: ''; position: absolute; inset: 1px; z-index: -1; background: var(--fill);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+.mainq.active { animation: edge-glow 2.4s ease-in-out infinite; }
+.mainq.done { --edge: var(--good); --fill: linear-gradient(135deg, color-mix(in srgb, var(--good) 10%, var(--surface)), var(--surface) 55%); }
+.mainq.failed { --edge: var(--danger); --fill: linear-gradient(135deg, color-mix(in srgb, var(--danger) 12%, var(--surface)), var(--surface) 55%); }
+.mainq.empty { --edge: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.mainq-kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; color: var(--accent); }
+.mainq-kicker.dim { color: var(--muted); margin-bottom: 6px; }
+.mainq.done .mainq-kicker { color: var(--good); }
+.mainq.failed .mainq-kicker { color: var(--danger); }
+.mainq-title { font-size: 24px; font-weight: 700; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.03em; overflow-wrap: anywhere; }
+.mainq-title.done { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--good); }
+.mainq-title.failed { color: var(--muted); }
+.mainq-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.mainq-next { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px dashed var(--line); padding-top: 10px; }
+.mainq-next b { color: var(--text); }
+.mainq-next .form { width: 100%; }
+@keyframes edge-glow { 50% { --edge: color-mix(in srgb, var(--accent) 45%, white); } }
+
+/* ---------- Bounty Board, weekly quests, checklists ---------- */
+
+.bounty-card { --edge: color-mix(in srgb, var(--cyan) 60%, var(--line)); }
+.bounty-card .card-head h3::before { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+.weekly { display: flex; flex-direction: column; gap: 8px; }
+.wq {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 10px 12px;
+  background: var(--surface-2); border-left: 3px solid var(--c); transition: background 0.2s;
+}
+.wq.ready { background: color-mix(in srgb, var(--c) 12%, var(--surface-2)); animation: ready-pulse 1.8s ease-in-out infinite; }
+.wq.claimed { opacity: 0.6; }
+.wq-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.wq-title { font-weight: 700; font-size: 17px; text-transform: uppercase; letter-spacing: 0.04em; }
+.wq.claimed .wq-title { text-decoration: line-through; text-decoration-color: var(--good); }
+.wq-note { font-size: 14px; color: var(--muted); line-height: 1.3; }
+.wq-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.wq .reward { color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.wq-action { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.wq-check { width: 32px; height: 32px; display: grid; place-items: center; background: var(--good); color: var(--bg); font-weight: 700; }
+.btn.claim { animation: pulse-glow 1.2s infinite; }
+@keyframes ready-pulse { 50% { background: color-mix(in srgb, var(--c) 22%, var(--surface-2)); } }
+
+.checklist { display: flex; flex-direction: column; gap: 6px; }
+.check-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; text-align: left; font-weight: 600; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow 0.15s; }
+.check-item:not(:disabled):hover { box-shadow: inset 0 0 0 1px var(--accent); }
+.check-item.on { color: var(--muted); }
+.check-box { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; background: var(--surface-3); font-weight: 700; font-size: 13px; }
+.check-item.on .check-box { background: var(--good); color: var(--bg); animation: pop 0.35s cubic-bezier(.2, 1.6, .4, 1); }
+
+.target-nums.interest { color: color-mix(in srgb, #ff6b2c 70%, var(--text)); }
+
+/* ---------- Overdrive ---------- */
+
+.overdrive-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 10px; font-family: var(--mono); font-size: 13px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.overdrive-meter.on { color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); animation: blink 1.4s steps(2) infinite; }
+.pips { display: flex; gap: 4px; }
+.pips i { width: 18px; height: 8px; background: var(--surface-3); clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.pips i.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.pips i.miss { background: color-mix(in srgb, var(--danger) 60%, var(--surface-3)); }
+
+:root[data-theme="overdrive"] {
+  --bg: #0b0600; --surface: #171005; --surface-2: #22170a; --surface-3: #3b2a10; --line: #5c3f12;
+  --text: #fff6e0; --muted: #cdab7a; --accent: #ffb300; --accent-ink: #1a0d00;
+  --cyan: #ff6a00; --pink: #ff3d00; --xp: linear-gradient(90deg, #ff6a00, #ffe14d);
+  --gold: #ffd54a; --good: #b6ff5c; --danger: #ff3b4e;
+}
+:root[data-theme="overdrive"] .shell::after {
+  content: ''; position: fixed; inset: 0; z-index: 190; pointer-events: none;
+  box-shadow: inset 0 0 70px rgba(255, 150, 0, 0.4); animation: overdrive-pulse 1.4s ease-in-out infinite;
+}
+@keyframes overdrive-pulse { 50% { box-shadow: inset 0 0 120px rgba(255, 190, 0, 0.6); } }
+
+/* ---------- Critical hit ---------- */
+
+.xp.crit { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
+.crit-fx { position: fixed; inset: 0; z-index: 95; pointer-events: none; display: grid; place-items: center; animation: crit-flash 1.9s ease-out forwards; }
+.crit-banner {
+  width: 100%; padding: 18px 12px; text-align: center;
+  font-family: var(--font); font-weight: 700; font-size: 40px; letter-spacing: 0.12em; line-height: 1;
+  color: #1a0d00; background: linear-gradient(90deg, transparent, #ffd54a 15%, #fff3b0 50%, #ffd54a 85%, transparent);
+  box-shadow: 0 0 60px rgba(255, 213, 74, 0.8);
+  animation: crit-in 1.9s cubic-bezier(.2, 1.4, .4, 1) forwards;
+}
+.crit-banner small { display: block; margin-top: 6px; font-family: var(--mono); font-size: 14px; letter-spacing: 0.3em; font-weight: 400; }
+@keyframes crit-flash { 0% { background: rgba(255, 213, 74, 0.45); } 12% { background: rgba(255, 213, 74, 0); } 18% { background: rgba(255, 213, 74, 0.25); } 30%, 100% { background: rgba(255, 213, 74, 0); } }
+@keyframes crit-in {
+  0% { transform: scaleX(0.2) scaleY(3) skewX(-20deg); opacity: 0; }
+  12% { transform: none; opacity: 1; }
+  16% { transform: translateX(-6px) skewX(6deg); }
+  20% { transform: translateX(6px) skewX(-4deg); }
+  24%, 78% { transform: none; opacity: 1; }
+  100% { transform: scaleY(0.05); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .crit-fx { background: rgba(255, 213, 74, 0.15); } }

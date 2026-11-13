@@ -4,7 +4,10 @@ A free web app that turns your day into XP. It runs on iPhone, iPad and Mac from
 
 - **Character sheet**: overall level, **HP** (max 100) and **Gold**, plus five attributes: 💪 STR (Physique), 🧠 INT (Knowledge), 🎨 TECH (Creative), 🎥 CHA (Brand), 💰 CRED (Wealth)
 - **Daily Dungeon**: time-gated quests that unlock and lock with the clock (Mon–Fri). Clear them for XP, Gold and HP; miss the Iron Dungeon and lose HP.
-- **Side quests**: flexible daily goals you set yourself, with a streak. Each can run on specific days, so rest days don't break it.
+- **Main Quest**: one high-stakes task a day, due by 9 PM
+- **Daily quests**: flexible daily goals you set yourself, with a streak. Each can run on specific days, so rest days don't break it.
+- **Weekly quests**: bigger goals that reset every Monday; many track themselves from your logs
+- **Critical hits, Overdrive and the Bounty Board**: surprise double rewards, a 2× XP mode for perfect days, and micro-bounties during IT downtime
 - **Debt bosses**: each debt's balance is its HP and every payment is an attack. +500 XP when one goes down.
 - **Gig and IT shifts** (DoorDash, Spark Driver, LanceSoft), with $/hour
 - **NASM** exam countdown and quiz-score chart (70% is the passing line)
@@ -15,7 +18,7 @@ A free web app that turns your day into XP. It runs on iPhone, iPad and Mac from
 - **Career Skill Tree**: Certified → The Floor → Book of Business → The 8-Week Program, each unlocking daily career quests
 - **Loot Shop**: spend Gold on real things from your wishlist (10 Gold = $1)
 - **Goals**: final goals broken into a ranked hit list of sub-goals, with a prime target on Home
-- **Stats**: 14-day XP chart, attributes, stress log and 24 achievements
+- **Stats**: 14-day XP chart, attributes, stress log and 28 achievements
 
 ## The Daily Dungeon
 
@@ -28,11 +31,26 @@ Each quest only counts if you log it **during its window** (or up to 60 minutes 
 | 2:00–6:00 PM | 🖥️ IT Headquarters | an IT shift | +25 CRED | |
 | 6:30–7:30 PM | 🎬 The Creator's Studio | 30 min drawing **or** 30 min content | +30 TECH or +30 CHA | |
 | 7:30–8:30 PM | 🍺 Tavern Rest | a gaming session | Mental Reset: +5% XP tomorrow | |
+| 8:00–9:00 PM (Sun–Thu) | 🎒 Inventory Management | ticking all three prep items | +10 HP, Save State: +5% XP in tomorrow's Iron Dungeon | |
 
 - **Fridays**: IT Headquarters moves to 9:00 AM–2:00 PM and the Hustle Wastes to 2:30–7:00 PM.
 - **Stealth Mission**: during the IT shift, log NASM study with the 🥷 toggle on. Once you've logged 2 hours in that shift, all of it earns **1.5× INT**.
 - Every quest cleared heals **+5 HP**. HP never goes above 100.
 - Schedules, rewards and penalties live in `js/dungeon.js`.
+
+## Quests by the day and the week
+
+- **⭐ Main Quest**: the single most important thing today, set the night before (or that morning). Clear it by **9:00 PM** for **+300 XP and +50 Gold**; miss the deadline and it costs **25 HP**. One per day.
+- **Daily quests**: your flexible daily goals (edit them in Settings). Clearing every one scheduled keeps your streak.
+- **Weekly quests** reset every Monday. Each one either counts your taps or **tracks itself** from what you log (workout splits, drawing sessions tagged Faces/Angles/Proportions, practice quizzes at 80%+, $ earned driving, IT shifts, perfect nutrition days...). When one is complete, tap **Claim**. Claimed rewards are saved permanently, so changing or deleting a quest later never takes XP back. Edit them in Settings → Weekly quests.
+- **🎯 Bounty Board**: appears on Home only during your IT shift. Small, specific micro-tasks worth +20 XP each, once per shift. Edit them in Settings → Micro-bounties.
+
+## Momentum mechanics
+
+- **⚡ Critical hits**: every log has a 1 in 10 chance to crit for **double XP and Gold**, revealed with a gold banner when you save. Weekly claims, bounties and career quests can crit too. The roll is tied to the entry's id, so it never changes afterwards.
+- **⚡ Sandevistan Overdrive**: clear the Iron Dungeon, Hustle Wastes, IT Headquarters and Creator's Studio in one day and everything you earn for the rest of that day is **2× XP**, with the whole app shifting to an amber theme until midnight.
+- **💾 Save State**: finishing Inventory Management the night before gives +5% XP in the next morning's Iron Dungeon (the checklist items live in `js/dungeon.js`).
+- The numbers are in `js/rpgMath.js` (`CRIT_CHANCE`, `OVERDRIVE_MULTIPLIER`, `MAIN_QUEST_XP`, `MAIN_QUEST_PENALTY`...).
 
 ## Goals: operations and the hit list
 
@@ -44,7 +62,8 @@ Each final goal is an **operation**. You break it into **targets** (sub-goals) a
 | 📈 Number | A number to reach (dollars saved, hours, pounds...). Update it with **+ Progress**. |
 | ✅ Milestone | Done or not done. |
 
-- **Ranking**: move targets with ▲▼, or auto-rank money targets by smallest, largest or highest APR.
+- **Ranking**: debts rank themselves by **interest cost** (balance × APR ÷ 12, shown as ≈ $/month on each card), highest first. New debts slot in automatically, and 🔥 Most interest re-ranks with today's balances. You can also sort by highest APR or smallest balance, or move targets by hand with ▲▼ (that switches the list to manual).
+- Balances, payments and APRs accept cents (up to 2 decimal places), and payoffs are matched to the exact cent.
 - **Rewards**: +150 XP per target, **+100 more if it was the prime target** when it fell (everything ranked above it was already cleared), and +1,000 XP for finishing the operation. Debt targets still pay the usual debt-boss XP and Gold too.
 - **Operation progress**: when every target is money, it's dollars cleared out of the total (so four cards adding up to $8,000 show as one $8,000 goal). Otherwise it's the average of the targets.
 - **Optional extras**: a deadline (shows a countdown and the pace needed to finish on time) and a reward you're promising yourself.
@@ -115,8 +134,13 @@ Add things you want IRL with their price; each costs **10 Gold per $1**. The Pur
 | Gig shift | 1 per $2 earned + 5 per hour | CRED |
 | IT shift | 10 per hour | CRED |
 | Debt payment | 1 per $2 paid | CRED |
-| Each side quest cleared | +25 | that quest's skill |
-| All of today's side quests cleared | +100 | overall only |
+| Each daily quest cleared | +25 | that quest's skill |
+| All of today's daily quests cleared | +100 | overall only |
+| Main Quest cleared by 9 PM | +300 (+50 Gold) | the attribute you pick |
+| Weekly quest claimed | its listed reward | its attribute(s) |
+| Micro-bounty | +20 | its attribute |
+| Critical hit (1 in 10) | ×2 XP and Gold on that entry | |
+| Overdrive | ×2 on everything until midnight | |
 | Protein goal hit | +40 | STR |
 | Debt boss defeated | +500 | CRED |
 
@@ -195,7 +219,8 @@ Good to know:
 | `js/store.js` | Saves everything on the device; mergeable records for sync |
 | `js/rpgMath.js` | XP curve, Gold economy, HP and multipliers |
 | `js/dungeon.js` | The Daily Dungeon schedule and time-gating |
-| `js/game.js` | Attributes, skills, XP rules, side quests, streaks, achievements; builds your character from your logs |
+| `js/game.js` | Attributes, skills, XP rules, daily quests, streaks, achievements; builds your character from your logs |
+| `js/weekly.js`, `js/boards.js` | Weekly quest tracking, and the Main Quest, Bounty Board and Weekly quests sections on Home |
 | `js/questboard.js` | The Daily Dungeon quest board |
 | `js/burnout.js` | Stress, Cyberpsychosis and nutrition scoring |
 | `js/nasm.js`, `js/ambush.js` | NASM question bank, encounter timing, and the Ambush pop-up |

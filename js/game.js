@@ -1,14 +1,16 @@
 // The game rules: attributes, skills, what each activity is worth, quests, streaks and achievements.
 // Your character (XP, levels, HP, Gold, buffs) is always recomputed from your logs, so tweaking a
 // number here or in rpgMath.js re-scores your whole history.
-import { todayStr, addDays, dayOfWeek, sum, groupBy } from './util.js';
+import { todayStr, addDays, cents, dayOfWeek, groupBy, parseDate, sum, timeOn, weekStart } from './util.js';
 import {
-  AMBUSH_GOLD, AMBUSH_HP_LOSS, AMBUSH_XP, CAREER_QUEST_XP, CYBERPSYCHOSIS_XP, DUNGEON_START, HP_REGEN_PER_QUEST,
-  MAX_HP, MAX_STRESS, MENTAL_RESET_BONUS, OPERATION_XP, PERFECT_NUTRITION_XP, PRIME_BONUS_XP, STEALTH_MULTIPLIER,
-  TARGET_XP, clampHP, goldFromLog, levelFromXP,
+  AMBUSH_GOLD, AMBUSH_HP_LOSS, AMBUSH_XP, BOUNTY_XP, CAREER_QUEST_XP, CRIT_MULTIPLIER, CYBERPSYCHOSIS_XP, DUNGEON_START,
+  HP_REGEN_PER_QUEST, MAIN_QUEST_DEADLINE, MAIN_QUEST_GOLD, MAIN_QUEST_PENALTY, MAIN_QUEST_XP, MAX_HP, MAX_STRESS,
+  MENTAL_RESET_BONUS, OPERATION_XP, OVERDRIVE_MULTIPLIER, PERFECT_NUTRITION_XP, PRIME_BONUS_XP, SAVE_STATE_BONUS,
+  STEALTH_MULTIPLIER, TARGET_XP, clampHP, goldFromLog, isCrit, levelFromXP, monthlyInterest,
 } from './rpgMath.js';
 import { evaluateGoals } from './goals.js';
-import { dungeonFor, evaluateQuest } from './dungeon.js';
+import { evaluateWeekly } from './weekly.js';
+import { OVERDRIVE_QUESTS, dungeonFor, evaluateQuest } from './dungeon.js';
 import { computeBurnout, nutritionOf } from './burnout.js';
 import { encountersFor } from './nasm.js';
 import { evaluateCareer } from './career.js';
@@ -87,23 +89,54 @@ export function questProgress(q, dayLogs) {
 
 // ---- Everything the UI shows, computed in one pass ----
 
-export function buildGame({ logs, quests, debts, loot, ambushes, career, goals = [], targets = [], settings, skills }, today = todayStr(), now = Date.now()) {
+export const bountyTickId = (bountyId, date) => `bt-${bountyId}-${date}`;
+export const mainQuestId = date => `main-${date}`;
+export const prepId = date => `prep-${date}`;
+
+export function buildGame(data, today = todayStr(), now = Date.now()) {
+  const {
+    logs, quests, debts, loot, ambushes, career, settings, skills,
+    goals = [], targets = [], weekly = [], wprog = [], wdone = [], mains = [], bounties = [], bticks = [], preps = [],
+  } = data;
   const byDate = groupBy(logs, l => l.date);
   const dayAt = date => Math.max(0, ...(byDate[date] || []).map(l => l.createdAt));
+  const startOf = date => parseDate(date).getTime();
+  const skillOf = attr => ATTR_BY_ID[attr]?.page ?? 'bonus';
 
   // 1. The Daily Dungeon for every day since it started tracking.
+  const prepByDate = Object.fromEntries(preps.map(p => [p.date, p]));
   const dungeonDays = {};
   for (let d = todayStr(new Date(DUNGEON_START)); d <= today; d = addDays(d, 1)) {
-    dungeonDays[d] = dungeonFor(d).map(q => evaluateQuest(q, byDate[d] || [], now));
+    dungeonDays[d] = dungeonFor(d).map(q => evaluateQuest(q, byDate[d] || [], now, prepByDate[d]));
   }
-  const dungeonToday = dungeonDays[today] ?? dungeonFor(today).map(q => evaluateQuest(q, byDate[today] || [], now));
+  const dungeonToday = dungeonDays[today] ?? dungeonFor(today).map(q => evaluateQuest(q, byDate[today] || [], now, prepByDate[today]));
+  const questOn = (date, id) => dungeonDays[date]?.find(q => q.id === id);
 
   // 2. Stress and Cyberpsychosis.
   const burnout = computeBurnout(logs, byDate, settings, today, now);
 
-  // 3. Buffs and debuffs. Mental Reset (+5%) is per day; Cyberpsychosis (−20%) covers gains made while it's active.
-  const mentalReset = date => dungeonDays[addDays(date, -1)]?.some(q => q.id === 'tavern' && q.status === 'complete');
-  const multiplier = (date, at) => (mentalReset(date) ? MENTAL_RESET_BONUS : 1) * (burnout.debuffedAt(at) ? CYBERPSYCHOSIS_XP : 1);
+  // 3. Buffs and debuffs.
+  //    Mental Reset (+5%): all day, after last night's Tavern Rest.
+  //    Save State (+5%): in the Iron Dungeon, the morning after Inventory Management.
+  //    Overdrive (2×): from the moment the day's four core quests are all cleared until midnight.
+  //    Cyberpsychosis (−20%): gains made while it's active.
+  const mentalReset = date => questOn(addDays(date, -1), 'tavern')?.status === 'complete';
+  const saveState = date => questOn(addDays(date, -1), 'prep')?.status === 'complete';
+  const overdriveAt = {};
+  for (const [date, day] of Object.entries(dungeonDays)) {
+    const core = OVERDRIVE_QUESTS.map(id => day.find(q => q.id === id));
+    if (core.every(q => q?.status === 'complete')) overdriveAt[date] = Math.max(...core.map(q => q.completedAt));
+  }
+  const inOverdrive = (date, at) => overdriveAt[date] != null && at > overdriveAt[date] && at < startOf(addDays(date, 1));
+  const inSavedIron = (date, at) => {
+    const iron = questOn(date, 'iron');
+    return !!iron && at >= iron.start && at <= iron.graceEnd && saveState(date);
+  };
+  const multiplier = (date, at) =>
+    (mentalReset(date) ? MENTAL_RESET_BONUS : 1) *
+    (burnout.debuffedAt(at) ? CYBERPSYCHOSIS_XP : 1) *
+    (inOverdrive(date, at) ? OVERDRIVE_MULTIPLIER : 1) *
+    (inSavedIron(date, at) ? SAVE_STATE_BONUS : 1);
 
   // 4. XP. Every source goes through add(), which applies buffs and debuffs.
   const skillXP = Object.fromEntries(skills.map(s => [s.id, 0]));
@@ -127,13 +160,15 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
     return xp;
   };
 
+  // A critical hit doubles a log's XP and Gold.
+  const critOf = l => isCrit(l.id) && (logXP(l) > 0 || goldFromLog(l) > 0);
   for (const l of logs) {
-    const it = dungeonDays[l.date]?.find(q => q.id === 'it');
+    const it = questOn(l.date, 'it');
     const stealth = it?.stealthActive && it.stealthIds.includes(l.id) ? STEALTH_MULTIPLIER : 1;
-    xpOfLog[l.id] = add(l.date, l.skill, logXP(l) * stealth, l.createdAt);
+    xpOfLog[l.id] = add(l.date, l.skill, logXP(l) * stealth * (critOf(l) ? CRIT_MULTIPLIER : 1), l.createdAt);
   }
 
-  // Side quests and nutrition bonuses.
+  // Daily quests and nutrition bonuses.
   for (const [date, dayLogs] of Object.entries(byDate)) {
     const active = quests.filter(q => questActiveOn(q, date));
     const done = active.filter(q => questProgress(q, dayLogs).done);
@@ -145,16 +180,16 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
   }
 
   // Dungeon rewards, Gold and HP.
-  let goldEarned = sum(logs, goldFromLog);
+  let goldEarned = sum(logs, l => goldFromLog(l) * (critOf(l) ? CRIT_MULTIPLIER : 1));
   const hpEvents = [];
   for (const [date, day] of Object.entries(dungeonDays)) {
     for (const q of day) {
       if (q.status === 'complete') {
         for (const o of q.objectives.filter(o => o.done)) {
-          for (const [attr, xp] of Object.entries(o.xp ?? {})) add(date, ATTR_BY_ID[attr].page, xp, q.completedAt);
+          for (const [attr, xp] of Object.entries(o.xp ?? {})) add(date, skillOf(attr), xp, q.completedAt);
         }
         goldEarned += q.gold || 0;
-        hpEvents.push({ at: q.completedAt, delta: HP_REGEN_PER_QUEST });
+        hpEvents.push({ at: q.completedAt, delta: q.heal ?? HP_REGEN_PER_QUEST });
       } else if (q.status === 'missed' && q.penalty) {
         hpEvents.push({ at: q.graceEnd, delta: -q.penalty });
       }
@@ -170,6 +205,32 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
       hpEvents.push({ at: a.answeredAt, delta: -AMBUSH_HP_LOSS });
     }
   }
+
+  // The daily Main Quest: a big bounty if it's cleared by the deadline, an HP hit if it isn't.
+  const mainState = m => {
+    if (!m?.title) return 'empty';
+    const deadline = timeOn(m.date, MAIN_QUEST_DEADLINE);
+    if (m.doneAt && m.doneAt <= deadline) return 'done';
+    return now > deadline ? 'failed' : 'active';
+  };
+  for (const m of mains) {
+    const state = mainState(m);
+    const deadline = timeOn(m.date, MAIN_QUEST_DEADLINE);
+    if (state === 'done') {
+      add(m.date, skillOf(m.attr), MAIN_QUEST_XP, m.doneAt);
+      goldEarned += MAIN_QUEST_GOLD;
+    } else if (state === 'failed' && m.createdAt <= deadline) {
+      hpEvents.push({ at: deadline, delta: -MAIN_QUEST_PENALTY });
+    }
+  }
+
+  // Micro-bounties ticked off during IT downtime, and weekly quest rewards that were claimed.
+  for (const t of bticks) add(t.date, skillOf(t.attr), (Number(t.xp) || BOUNTY_XP) * (isCrit(t.id) ? CRIT_MULTIPLIER : 1), t.at);
+  for (const c of wdone) {
+    const date = todayStr(new Date(c.at));
+    for (const r of c.rewards ?? []) add(date, skillOf(r.attr), (Number(r.xp) || 0) * (isCrit(c.id) ? CRIT_MULTIPLIER : 1), c.at);
+  }
+
   const hp = hpEvents.sort((a, b) => a.at - b.at).reduce((v, e) => clampHP(v + e.delta), MAX_HP);
   const purchases = loot.filter(i => i.purchasedAt);
   const goldSpent = sum(purchases, i => i.goldCost);
@@ -177,25 +238,26 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
   // A pending ambush: an encounter whose time has come during today's IT shift and isn't answered yet.
   const itToday = dungeonToday.find(q => q.id === 'it');
   const encounters = itToday ? encountersFor(itToday).map(e => ({ ...e, result: ambushes.find(a => a.id === e.id) ?? null })) : [];
-  const pendingAmbush = itToday && now >= itToday.start && now <= itToday.end
-    ? encounters.find(e => e.at <= now && e.at >= DUNGEON_START && !e.result) ?? null
-    : null;
+  const shiftOpen = !!itToday && now >= itToday.start && now <= itToday.end;
+  const pendingAmbush = shiftOpen ? encounters.find(e => e.at <= now && e.at >= DUNGEON_START && !e.result) ?? null : null;
 
-  // 5. Debt bosses.
+  // 5. Debt bosses. Money is compared in whole cents so a balance like $1,234.56 pays off exactly.
   const bosses = debts.map(d => {
     const payments = logs
       .filter(l => l.kind === 'payment' && l.debtId === d.id)
       .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt);
+    const owed = cents(d.balance);
     let paid = 0;
     let defeated = null;
     for (const p of payments) {
-      paid += Number(p.amount) || 0;
-      if (!defeated && d.balance > 0 && paid >= d.balance) defeated = p;
+      paid += cents(p.amount);
+      if (!defeated && owed > 0 && paid >= owed) defeated = p;
     }
     if (defeated) add(defeated.date, 'finance', BONUS.boss, defeated.createdAt);
-    const balance = Number(d.balance) || 0;
+    const remaining = Math.max(0, owed - paid) / 100;
     return {
-      ...d, paid, remaining: Math.max(0, balance - paid), pct: balance ? Math.min(1, paid / balance) : 0,
+      ...d, paid: paid / 100, remaining, pct: owed ? Math.min(1, paid / owed) : 0,
+      interest: monthlyInterest(remaining, d.apr),
       defeatedOn: defeated?.date ?? null, defeatedAt: defeated?.createdAt ?? null,
     };
   }).sort((a, b) => !!a.defeatedOn - !!b.defeatedOn || a.remaining - b.remaining);
@@ -209,7 +271,7 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
     if (op.complete) add(todayStr(new Date(op.completedAt)), op.skill, OPERATION_XP, op.completedAt);
   }
 
-  // 6. Streak = consecutive days with every side quest cleared. Days with none scheduled don't break it,
+  // 6. Streak = consecutive days with every daily quest cleared. Days with none scheduled don't break it,
   // and today only counts once it's cleared (it isn't "missed" until it's over).
   const dayStatus = date => {
     const active = quests.filter(q => questActiveOn(q, date));
@@ -239,6 +301,24 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
     .filter(q => questActiveOn(q, today))
     .map(q => ({ ...q, ...questProgress(q, todayLogs) }));
 
+  // 7. This week's quests (Monday to Sunday).
+  const week = weekStart(today);
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(week, i));
+  const weeklyQuests = evaluateWeekly(weekly, wprog, wdone, {
+    week, days: weekDays, byDate, settings, logs: logs.filter(l => l.date >= week && l.date <= weekDays[6]),
+  });
+
+  // 8. Today's main quest, tomorrow's, and the IT-shift bounty board.
+  const mainOn = date => {
+    const rec = mains.find(m => m.date === date) ?? null;
+    return { date, rec, status: mainState(rec), deadline: timeOn(date, MAIN_QUEST_DEADLINE) };
+  };
+  const bountyBoard = {
+    open: shiftOpen,
+    closesAt: itToday?.end ?? null,
+    list: bounties.filter(b => b.active !== false).map(b => ({ ...b, tick: bticks.find(t => t.id === bountyTickId(b.id, today)) ?? null })),
+  };
+
   const attributes = ATTRIBUTES.map(a => ({ ...a, xp: attrXP[a.id], ...levelFromXP(attrXP[a.id]) }));
   // Your build 4 weeks ago, for the radar chart's comparison outline.
   const cutoff = addDays(today, -28);
@@ -247,8 +327,13 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
     if (date <= cutoff) for (const [id, xp] of Object.entries(byAttr)) xpAgo[id] += xp;
   }
   const attributesAgo = ATTRIBUTES.map(a => ({ id: a.id, xp: xpAgo[a.id], ...levelFromXP(xpAgo[a.id]) }));
+
+  const overdrive = inOverdrive(today, now) ? { since: overdriveAt[today], until: startOf(addDays(today, 1)) } : null;
+  const ironToday = questOn(today, 'iron');
   const buffs = [];
+  if (overdrive) buffs.push({ icon: '⚡', name: 'Sandevistan Overdrive', desc: '2× XP until midnight' });
   if (mentalReset(today)) buffs.push({ icon: '🧘', name: 'Mental Reset', desc: '+5% XP today' });
+  if (saveState(today) && ironToday && now <= ironToday.graceEnd) buffs.push({ icon: '💾', name: 'Save State', desc: '+5% XP in the Iron Dungeon' });
   if (burnout.active) buffs.push({ icon: '🧠', name: 'Cyberpsychosis', desc: '−20% XP', bad: true });
 
   const overall = levelFromXP(total);
@@ -264,6 +349,7 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
     goldEarned: Math.floor(goldEarned),
     buffs,
     multiplierNow: multiplier(today, now),
+    overdrive,
     stress: burnout.stress,
     maxStress: MAX_STRESS,
     cyberpsychosis: burnout.active,
@@ -274,12 +360,19 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
     pendingAmbush,
     career: evaluateCareer(career, attributes),
     goals: operations,
+    weekly: weeklyQuests,
+    week,
+    weekResetsAt: startOf(addDays(week, 7)),
+    main: mainOn(today),
+    mainTomorrow: mainOn(addDays(today, 1)),
+    bountyBoard,
     attributes,
     attributesAgo,
     skillXP,
     skillLevels: Object.fromEntries(Object.entries(skillXP).map(([id, xp]) => [id, levelFromXP(xp)])),
     xpByDate,
     xpOfLog,
+    critIds: new Set(logs.filter(critOf).map(l => l.id)),
     todayXP: xpByDate[today] || 0,
     dungeonToday,
     todayQuests,
@@ -301,6 +394,10 @@ export function buildGame({ logs, quests, debts, loot, ambushes, career, goals =
       lootBought: purchases.length,
       primeClears: sum(operations, op => op.targets.filter(t => t.inOrder).length),
       opsComplete: operations.filter(op => op.complete).length,
+      crits: logs.filter(critOf).length,
+      overdriveDays: Object.keys(overdriveAt).length,
+      weeklyClaims: wdone.length,
+      mainsDone: mains.filter(m => mainState(m) === 'done').length,
     },
   };
 }
@@ -330,4 +427,8 @@ export const ACHIEVEMENTS = [
   { icon: '🎓', name: 'Certified', desc: 'Unlock the first Career node', test: g => g.career.nodes[0].status === 'unlocked' },
   { icon: '🎯', name: 'Sharpshooter', desc: 'Take down a prime target', test: g => g.totals.primeClears >= 1 },
   { icon: '🏁', name: 'Mission Accomplished', desc: 'Complete a final goal', test: g => g.totals.opsComplete >= 1 },
+  { icon: '⚡', name: 'Lucky Strike', desc: 'Land a critical hit', test: g => g.totals.crits >= 1 },
+  { icon: '🚀', name: 'Overdrive', desc: 'Clear all four core dungeon quests in one day', test: g => g.totals.overdriveDays >= 1 },
+  { icon: '🗓️', name: 'Weekly Warrior', desc: 'Claim 10 weekly quests', test: g => g.totals.weeklyClaims >= 10 },
+  { icon: '🐸', name: 'Frog Eater', desc: 'Clear 7 main quests', test: g => g.totals.mainsDone >= 7 },
 ];

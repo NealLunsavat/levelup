@@ -2,7 +2,7 @@
 // plus the prime-target card shown on Home.
 import { html, useLayoutEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { TARGET_KINDS } from './goals.js';
-import { OPERATION_XP, PRIME_BONUS_XP, TARGET_XP } from './rpgMath.js';
+import { OPERATION_XP, PRIME_BONUS_XP, TARGET_XP, monthlyInterest } from './rpgMath.js';
 import { put, remove } from './store.js';
 import { feedback } from './fx.js';
 import { Bar, Card, GoalTabs, Sheet, useApp } from './components.js';
@@ -27,6 +27,29 @@ function targetAction(t, { openLog }, openProgress) {
   if (t.kind === 'amount') return { label: '+ Progress', run: () => openProgress(t) };
   return { label: '✓ Done', run: () => put({ ...t.rec, doneAt: Date.now() }) };
 }
+
+const owed = t => t.total - t.current;
+// Most interest first; with no APR to go on, the bigger balance goes first.
+const byInterest = (a, b) => b.interest - a.interest || owed(b) - owed(a);
+
+// Save a new order for the targets still standing. Cleared targets keep their place in the ranking
+// (so the prime bonus they earned doesn't change); anything new goes in after them.
+function applyOrder(op, active) {
+  let i = 0;
+  const full = [...op.targets.map(t => (t.done ? t : active[i++])), ...active.slice(i)];
+  full.forEach((t, idx) => {
+    if (t.rec.rank !== idx + 1) put({ ...t.rec, rank: idx + 1 });
+  });
+}
+
+// Rank the hit list by what each debt costs in interest right now. `added` are targets just created.
+export function rankByInterest(op, added = []) {
+  applyOrder(op, [...op.active, ...added].sort(byInterest));
+  if (op.rec.rankBy !== 'interest') put({ ...op.rec, rankBy: 'interest' });
+}
+
+// A just-created debt target, shaped like an evaluated one so it can be ranked.
+const freshTarget = (rec, boss) => ({ rec, interest: monthlyInterest(boss.remaining ?? boss.balance, boss.apr), total: Number(boss.balance) || 0, current: 0 });
 
 // Debt bosses that aren't on any hit list yet.
 function useFreeBosses() {
@@ -113,31 +136,30 @@ function Operation({ op, open }) {
     pace = left >= 14 ? `${fmtMoney(Math.ceil(remaining / (left / 7)))} / week` : `${fmtMoney(Math.ceil(remaining / left))} / day`;
   }
 
-  // Cleared targets keep their place; only the ones still standing change rank.
-  const reorder = active => {
-    let i = 0;
-    op.targets.map(t => (t.done ? t : active[i++])).forEach((t, idx) => {
-      if (t.rec.rank !== idx + 1) put({ ...t.rec, rank: idx + 1 });
-    });
+  const byInterestMode = op.rec.rankBy !== 'manual';
+  // Moving a target by hand, or picking another sort, takes the list off automatic interest ranking.
+  const manual = active => {
+    applyOrder(op, active);
+    if (op.rec.rankBy !== 'manual') put({ ...op.rec, rankBy: 'manual' });
   };
   const move = (t, dir) => {
     const list = [...op.active];
     const i = list.indexOf(t);
     [list[i], list[i + dir]] = [list[i + dir], list[i]];
-    reorder(list);
+    manual(list);
     feedback('tap');
   };
   const autoRank = compare => {
-    reorder([...op.active].sort(compare));
+    manual([...op.active].sort(compare));
     feedback('tick');
   };
   const addBosses = () => {
     let rank = Math.max(0, ...op.targets.map(t => t.rec.rank ?? 0));
-    for (const b of freeBosses) put({ type: 'target', goalId: op.id, kind: 'debt', debtId: b.id, title: b.name, rank: ++rank, createdAt: Date.now() });
+    const added = freeBosses.map(b => freshTarget(put({ type: 'target', goalId: op.id, kind: 'debt', debtId: b.id, title: b.name, rank: ++rank, createdAt: Date.now() }), b));
+    if (byInterestMode) rankByInterest(op, added);
     feedback('quest', 'double');
   };
   const undo = t => (t.kind === 'check' ? put({ ...t.rec, doneAt: null }) : open({ type: 'progress', target: t }));
-  const owed = t => t.total - t.current;
 
   return html`<section class=${'op' + (op.complete ? ' complete' : '')}>
     <div class="op-head">
@@ -165,6 +187,7 @@ function Operation({ op, open }) {
     <div class="chips">
       ${op.money && html`<span class="chip">🎯 ${op.cleared.length}/${op.targets.length} targets down</span>`}
       ${left != null && !op.complete && html`<span class=${'chip' + (left < 0 ? ' debuff' : left <= 7 ? ' fire' : '')}>⏱ ${left < 0 ? `${-left} days overdue` : left === 0 ? 'Due today' : `T-${left} days`}</span>`}
+      ${op.interest > 0 && html`<span class="chip fire">🔥 ≈ ${fmtMoney(Math.round(op.interest * 100) / 100)}/mo in interest</span>`}
       ${pace && html`<span class="chip">📈 On-time pace: ${pace}</span>`}
       ${op.reward && html`<span class="chip buff">🎁 ${op.reward}</span>`}
     </div>
@@ -179,11 +202,12 @@ function Operation({ op, open }) {
     </div>`}
 
     ${op.active.length > 1 && op.active.every(t => t.money) && html`<div class="chip-row autorank">
-      <span class="tiny muted">AUTO-RANK</span>
-      <button class="chip-btn mini" onClick=${() => autoRank((a, b) => owed(a) - owed(b))}>Smallest first</button>
-      <button class="chip-btn mini" onClick=${() => autoRank((a, b) => owed(b) - owed(a))}>Largest first</button>
-      ${op.active.some(t => t.apr > 0) && html`<button class="chip-btn mini" onClick=${() => autoRank((a, b) => b.apr - a.apr)}>Highest APR first</button>`}
-    </div>`}
+      <span class="tiny muted">RANK BY</span>
+      <button class=${'chip-btn mini' + (byInterestMode ? ' on' : '')} onClick=${() => { rankByInterest(op); feedback('tick'); }}>🔥 Most interest</button>
+      <button class="chip-btn mini" onClick=${() => autoRank((a, b) => b.apr - a.apr || owed(b) - owed(a))}>Highest APR</button>
+      <button class="chip-btn mini" onClick=${() => autoRank((a, b) => owed(a) - owed(b))}>Smallest balance</button>
+    </div>
+    ${byInterestMode && html`<p class="tiny muted">Ranked by interest cost (balance × APR). New debts slot in automatically; tap 🔥 to re-rank with today's balances.</p>`}`}
 
     <button class="btn" onClick=${() => open({ type: 'target', op })}>+ Add target</button>
 
@@ -215,6 +239,7 @@ function TargetRow({ op, t, index, last, move, open }) {
       <div class="target-title">${TARGET_KINDS[t.kind].icon} ${t.title}</div>
       ${t.kind !== 'check' && !t.orphan && html`<${Bar} pct=${t.pct} color=${prime ? 'var(--accent)' : 'var(--cyan)'} thin=${!prime} />`}
       <div class="target-nums">${progressText(t)}${t.apr ? ` · ${t.apr}% APR` : ''}</div>
+      ${t.interest > 0 && html`<div class="target-nums interest">🔥 ≈ ${fmtMoney(Math.round(t.interest * 100) / 100)}/mo in interest</div>`}
       <div class="target-actions">
         <button class="icon-btn" disabled=${prime} aria-label=${`Move ${t.title} up`} onClick=${() => move(t, -1)}>▲</button>
         <button class="icon-btn" disabled=${last} aria-label=${`Move ${t.title} down`} onClick=${() => move(t, 1)}>▼</button>
@@ -236,7 +261,7 @@ function GoalForm({ goal, onClose }) {
   function save(e) {
     e.preventDefault();
     if (!f.title.trim()) return setError('Give your final goal a name.');
-    put({ ...(goal.id ? { id: goal.id } : {}), type: 'goal', title: f.title.trim(), skill: f.skill, deadline: f.deadline, reward: f.reward.trim(), createdAt: goal.createdAt ?? Date.now() });
+    put({ ...(goal.rec ?? {}), type: 'goal', title: f.title.trim(), skill: f.skill, deadline: f.deadline, reward: f.reward.trim(), createdAt: goal.createdAt ?? Date.now() });
     if (!goal.id) {
       feedback('quest', 'double');
       toast('🎯 Operation launched. Now add its targets.');
@@ -292,7 +317,8 @@ function TargetForm({ op, target, onClose }) {
         if (!f.name.trim() || !(f.balance > 0)) return setError('Add the name and the balance you owe.');
         boss = put({ type: 'debt', name: f.name.trim(), balance: f.balance, apr: f.apr, createdAt: Date.now() });
       }
-      put({ ...base, debtId: boss.id, title: boss.name });
+      const added = put({ ...base, debtId: boss.id, title: boss.name });
+      if (!rec && op.rec.rankBy !== 'manual') rankByInterest(op, [freshTarget(added, boss)]);
     } else if (kind === 'amount') {
       if (!f.title.trim() || !(f.target > 0)) return setError('Add a name and the number to reach.');
       const current = Math.max(0, Number(f.current) || 0);

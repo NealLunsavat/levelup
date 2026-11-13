@@ -6,6 +6,7 @@ import { AttributeGrid, Bar, BuildRadar, Card, Empty, LogList, PlayerCard, Sheet
 import { QuestBoard } from './questboard.js';
 import { CareerQuests } from './skilltree.js';
 import { PrimeTargets } from './goalspage.js';
+import { BountyBoard, MainQuest, WeeklyQuests } from './boards.js';
 import { haptic, play } from './fx.js';
 import { PERFECT_NUTRITION_XP } from './rpgMath.js';
 import { ART_FOCUS, Num, Text } from './logsheet.js';
@@ -22,15 +23,19 @@ export function Home() {
     ${game.cyberpsychosis && html`<div class="banner danger">🧠 <b>CYBERPSYCHOSIS</b>: −20% XP${game.shopLockedUntil ? ' and the Loot Shop is locked' : ''}. Cure it with an 8-hour sleep or a perfect nutrition day.</div>`}
 
     <${QuickLog} />
+    <${MainQuest} />
+    <${BountyBoard} />
     <${PrimeTargets} />
     <${QuestBoard} />
     <${CareerQuests} home />
 
-    <${Card} title="Side quests" right=${html`<span class="muted small">${done}/${quests.length} cleared</span>`}>
+    <${Card} title="Daily quests" right=${html`<span class="muted small">${done}/${quests.length} cleared</span>`}>
       ${quests.length ? html`<div class="quest-list">${quests.map(q => html`<${QuestRow} q=${q} skill=${skillMap[q.skill]} onClick=${() => openLog({ skill: q.skill })} />`)}</div>`
         : html`<${Empty}>No quests scheduled today. Rest day! Edit quests in <a href="#/settings">Settings</a>.<//>`}
-      ${game.allClear && html`<div class="banner">🎉 All quests cleared! +${BONUS.allQuests} bonus XP</div>`}
+      ${game.allClear && html`<div class="banner">🎉 All daily quests cleared! +${BONUS.allQuests} bonus XP</div>`}
     <//>
+
+    <${WeeklyQuests} />
 
     <div class="section-head"><h3>Attributes</h3><a class="small link" href="#/skills">All skills</a></div>
     <${AttributeGrid} />

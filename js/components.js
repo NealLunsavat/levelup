@@ -225,7 +225,7 @@ export function LogList({ logs, limit = 10 }) {
           <span class="log-title">${label}</span>
           <span class="log-sub">${describeLog(l, ctx)}</span>
         </span>
-        <span class="log-meta"><span class="xp">+${ctx.game.xpOfLog[l.id] ?? logXP(l)}</span><span class="tiny muted">${fmtDate(l.date)}</span></span>
+        <span class="log-meta"><span class=${'xp' + (ctx.game.critIds.has(l.id) ? ' crit' : '')}>${ctx.game.critIds.has(l.id) ? '⚡ ' : ''}+${ctx.game.xpOfLog[l.id] ?? logXP(l)}</span><span class="tiny muted">${fmtDate(l.date)}</span></span>
       </button>`;
     })}
   </div>`;

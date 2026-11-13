@@ -1,7 +1,7 @@
 // The Career page: the skill tree, your real-life milestones, and the quest packs you've unlocked.
 import { html, useState } from '../vendor/preact-htm.js';
 import { CAREER_NODES } from './career.js';
-import { CAREER_QUEST_XP } from './rpgMath.js';
+import { CAREER_QUEST_XP, isCrit } from './rpgMath.js';
 import { put, remove } from './store.js';
 import { feedback } from './fx.js';
 import { Card, Empty, GoalTabs, celebrate, useApp } from './components.js';
@@ -125,7 +125,7 @@ function Milestones() {
 
 // Today's quests from every unlocked pack. Shown on the Career page and on Home.
 export function CareerQuests({ home }) {
-  const { game, data, toast } = useApp();
+  const { game, data, toast, crit } = useApp();
   const packs = game.career.packs;
   if (!packs.length) {
     return home ? null : html`<${Card} title="Career quests"><${Empty}>Unlock your first node to get daily career quests.<//><//>`;
@@ -134,8 +134,9 @@ export function CareerQuests({ home }) {
   function toggle(pack, q) {
     const log = doneToday.get(q.id);
     if (log) return remove(log.id);
-    put({ type: 'log', kind: 'career', skill: pack.skill, date: game.today, createdAt: Date.now(), questId: q.id, title: q.title, pack: pack.id });
-    feedback('tick');
+    const saved = put({ type: 'log', kind: 'career', skill: pack.skill, date: game.today, createdAt: Date.now(), questId: q.id, title: q.title, pack: pack.id });
+    if (isCrit(saved.id)) crit();
+    else feedback('tick');
     toast(`🎯 ${q.title}`);
   }
   const all = packs.flatMap(p => p.quests);

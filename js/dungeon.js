@@ -40,7 +40,23 @@ export const DUNGEON = [
     objectives: [{ kind: 'rest' }],
     buff: 'Mental Reset: +5% XP tomorrow', penalty: 0,
   },
+  {
+    // The nightly "save state": tick all three before bed so the early start has no friction.
+    id: 'prep', name: 'Inventory Management', icon: '🎒',
+    task: 'Save your state: set up tomorrow morning before you sleep',
+    window: ['20:00', '21:00'], days: [0, 1, 2, 3, 4], // the night before each gym morning (Sun–Thu)
+    objectives: [],
+    checklist: [
+      { id: 'meal', label: 'Prepped cream of rice & whey' },
+      { id: 'clothes', label: 'Laid out gym clothes' },
+      { id: 'charge', label: 'Charged iPad & Apple Pencil' },
+    ],
+    heal: 10, buff: 'Save State: +5% XP in tomorrow’s Iron Dungeon', penalty: 0,
+  },
 ];
+
+// Clear all four of these in one day to trigger Overdrive.
+export const OVERDRIVE_QUESTS = ['iron', 'hustle', 'it', 'studio'];
 
 const DUNGEON_DAYS = [1, 2, 3, 4, 5]; // Mon–Fri; weekends are rest days
 
@@ -57,8 +73,7 @@ const timeOn = (date, minutes) => {
 // The quests scheduled on a date, with absolute start/end times, in time order.
 export function dungeonFor(date) {
   const dow = dayOfWeek(date);
-  if (!DUNGEON_DAYS.includes(dow)) return [];
-  return DUNGEON.map(q => {
+  return DUNGEON.filter(q => (q.days ?? DUNGEON_DAYS).includes(dow)).map(q => {
     const [start, end] = dow === 5 && q.friday ? q.friday : q.window;
     const s = timeOn(date, toMinutes(start));
     const e = timeOn(date, toMinutes(end));
@@ -66,9 +81,9 @@ export function dungeonFor(date) {
   }).sort((a, b) => a.start - b.start);
 }
 
-// Work out a quest's state at `now` from that day's logs.
+// Work out a quest's state at `now` from that day's logs (and, for checklist quests, that day's ticks).
 // status: locked (not open yet) | active | complete | missed | untracked (began before the dungeon existed)
-export function evaluateQuest(q, dayLogs, now) {
+export function evaluateQuest(q, dayLogs, now, prep) {
   const inWindow = l => l.date === q.date && l.createdAt >= q.start && l.createdAt <= q.graceEnd;
   let completedAt = null;
   const objectives = q.objectives.map(o => {
@@ -83,13 +98,20 @@ export function evaluateQuest(q, dayLogs, now) {
     return { ...o, logged, done: !!doneAt };
   });
 
+  // Checklist quests clear when every item was ticked during the window.
+  const checklist = q.checklist?.map(c => {
+    const at = prep?.items?.[c.id] ?? null;
+    return { ...c, at, done: at != null && at >= q.start && at <= q.graceEnd };
+  });
+  if (checklist?.every(c => c.done)) completedAt = Math.max(...checklist.map(c => c.at));
+
   let status;
   if (completedAt) status = 'complete';
   else if (now < q.start) status = 'locked';
   else if (now <= q.graceEnd) status = 'active';
   else status = q.start >= DUNGEON_START ? 'missed' : 'untracked';
 
-  const out = { ...q, objectives, status, completedAt };
+  const out = { ...q, objectives, checklist, status, completedAt };
   if (q.stealth) {
     const stealthLogs = dayLogs.filter(l => l.kind === 'study' && l.stealth && inWindow(l));
     out.stealthIds = stealthLogs.map(l => l.id);

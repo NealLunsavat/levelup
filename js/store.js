@@ -14,6 +14,35 @@ const DEFAULTS = [
   { id: 'q-art', type: 'quest', order: 3, title: 'Draw for 20 min', skill: 'art', metric: 'minutes', target: 20, days: ALL_DAYS },
   { id: 'q-food', type: 'quest', order: 4, title: 'Log 3 meals', skill: 'food', metric: 'count', target: 3, days: ALL_DAYS },
   { id: 'q-earn', type: 'quest', order: 5, title: 'Earn $100 driving', skill: 'finance', metric: 'earned', target: 100, days: [5, 6, 0] },
+
+  // Weekly quests. `track` is 'manual' (tap to count) or a metric from weekly.js that fills in from your logs.
+  { id: 'w-macro', type: 'weekly', order: 1, title: 'The Perfect Macro Week', track: 'perfectDays', target: 7, rewards: [{ attr: 'str', xp: 100 }],
+    note: 'Log 7 straight days in MacroFactor within 5% of your calorie target, with protein hit.' },
+  { id: 'w-gauntlet', type: 'weekly', order: 2, title: 'The 5-Day Gauntlet', track: 'rotation', target: 5, rewards: [{ attr: 'str', xp: 150 }],
+    note: 'Complete Upper, Lower, Push, Pull and Legs at DMV Iron Gym without skipping the post-workout incline cardio.' },
+  { id: 'w-arsenal', type: 'weekly', order: 3, title: 'Arsenal Prepared', track: 'manual', target: 1, rewards: [{ attr: 'str', xp: 50 }],
+    note: 'Batch-prep pre- and post-workout meals on Sunday for the Monday–Friday grind (cream of rice, ISO100 whey, PBfit, collagen).' },
+  { id: 'w-mastery', type: 'weekly', order: 4, title: 'The Mastery Trial', track: 'quiz80', target: 1, rewards: [{ attr: 'int', xp: 150 }],
+    note: 'Pass a full NASM practice exam in GoodNotes with 80% or higher. Log it as a practice quiz.' },
+  { id: 'w-recon', type: 'weekly', order: 5, title: 'The Floor Recon', track: 'manual', target: 1, rewards: [{ attr: 'int', xp: 75 }],
+    note: 'Spend 1 hour researching Equinox Tysons Corner onboarding, interview structure or shadowing requirements.' },
+  { id: 'w-davinci', type: 'weekly', order: 6, title: 'DaVinci Director', track: 'manual', target: 2, rewards: [{ attr: 'cha', xp: 100 }],
+    note: 'Color grade (Apple Log 2 to Rec.709-A) and export two short-form fitness videos for Reels or TikTok.' },
+  { id: 'w-loomis', type: 'weekly', order: 7, title: 'Loomis Architect', track: 'faceSessions', target: 3, rewards: [{ attr: 'tech', xp: 100 }],
+    note: 'Three full Procreate sessions on complex facial angles and proportions (Edgerunners or JJK references). Tag the session Faces, Angles or Proportions.' },
+  { id: 'w-thread', type: 'weekly', order: 8, title: 'The Threadsmith', track: 'manual', target: 1, rewards: [{ attr: 'tech', xp: 100 }, { attr: 'cha', xp: 50 }],
+    note: 'Finalize one complete clothing or shoe design mockup toward your monthly apparel manufacturing goal.' },
+  { id: 'w-spark', type: 'weekly', order: 9, title: 'The Spark Milestone', track: 'earned', target: 300, rewards: [{ attr: 'cred', xp: 150 }],
+    note: 'Earn $300 across DoorDash and Spark Driver, earmarked to attack the Debt Boss.' },
+  { id: 'w-vanguard', type: 'weekly', order: 10, title: 'LanceSoft Vanguard', track: 'itShifts', target: 5, rewards: [{ attr: 'cred', xp: 100 }],
+    note: 'Complete all 5 weekly IT Support shifts without missing hours.' },
+
+  // Micro-bounties for IT downtime.
+  { id: 'b-loomis', type: 'bounty', order: 1, title: 'Draw 15 Loomis heads', attr: 'tech', xp: 20 },
+  { id: 'b-pages', type: 'bounty', order: 2, title: 'Read 5 pages of the NASM text', attr: 'int', xp: 20 },
+  { id: 'b-linkedin', type: 'bounty', order: 3, title: 'Message 1 Equinox trainer on LinkedIn', attr: 'cha', xp: 20 },
+  { id: 'b-cards', type: 'bounty', order: 4, title: 'Review 10 NASM flashcards', attr: 'int', xp: 20 },
+  { id: 'b-hands', type: 'bounty', order: 5, title: 'Sketch 5 hands from your own hand', attr: 'tech', xp: 20 },
 ];
 
 let records = read(KEY, {});

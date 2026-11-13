@@ -82,6 +82,15 @@ const SOUNDS = {
   win: () => arpeggio([784, 988, 1175, 1568], 0.06, 0.12),
   hit: () => tone(220, 0, 0.35, { type: 'sawtooth', vol: 0.1, slide: 55 }),
   shift: () => tone(180, 0, 0.5, { type: 'triangle', vol: 0.1, slide: 720 }),
+  // Rare and high-pitched, so a critical hit is unmistakable.
+  crit: () => {
+    arpeggio([1568, 2093, 2637, 3136], 0.045, 0.09, { vol: 0.1 });
+    tone(4186, 0.2, 0.4, { type: 'triangle', vol: 0.08 });
+  },
+  overdrive: () => {
+    tone(110, 0, 0.8, { type: 'sawtooth', vol: 0.08, slide: 880 });
+    [523, 784, 1047, 1568].forEach((f, i) => tone(f, 0.5 + i * 0.09, 0.2));
+  },
 };
 
 export function play(name) {

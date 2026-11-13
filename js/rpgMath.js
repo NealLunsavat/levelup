@@ -85,3 +85,36 @@ export const CAREER_QUEST_XP = 40;
 export const TARGET_XP = 150; // bounty for clearing any target (sub-goal)
 export const PRIME_BONUS_XP = 100; // extra for clearing it while it's the prime (top-ranked) target
 export const OPERATION_XP = 1000; // finishing a whole final goal
+
+// Roughly what a balance costs in interest per month at an APR. Cards really charge daily, so it's an estimate.
+export const monthlyInterest = (balance, apr) => ((Number(balance) || 0) * (Number(apr) || 0)) / 100 / 12;
+
+// ---- Critical hits ----
+
+export const CRIT_CHANCE = 0.1; // 1 in 10 logs
+export const CRIT_MULTIPLIER = 2; // doubles that log's XP and Gold
+
+// Whether a record is a critical hit. It's decided by the record's random id, so it's a surprise
+// when you log it, but it never changes afterwards and every synced device agrees.
+export function isCrit(id) {
+  let h = 2166136261;
+  const s = 'crit:' + id;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  return ((h >>> 0) % 1000) / 1000 < CRIT_CHANCE;
+}
+
+// ---- Overdrive, save state, main quest, bounties ----
+
+export const OVERDRIVE_MULTIPLIER = 2; // XP for the rest of the day after a perfect dungeon run
+export const SAVE_STATE_BONUS = 1.05; // Iron Dungeon XP the morning after Inventory Management
+export const MAIN_QUEST_XP = 300;
+export const MAIN_QUEST_GOLD = 50;
+export const MAIN_QUEST_PENALTY = 25; // HP lost if it isn't cleared by the deadline
+export const MAIN_QUEST_DEADLINE = '21:00';
+export const BOUNTY_XP = 20; // default reward for a micro-bounty

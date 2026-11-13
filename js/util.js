@@ -52,3 +52,26 @@ export function fmtMinutes(min) {
 }
 
 export const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+// Money in whole cents, so $100.10 paid as two $50.05 payments really reaches zero.
+export const cents = n => Math.round((Number(n) || 0) * 100);
+
+// The Monday that starts the week a date falls in.
+export const weekStart = s => addDays(s, -((dayOfWeek(s) + 6) % 7));
+
+// A clock time on a date, as a timestamp: timeOn('2026-11-13', '21:00').
+export function timeOn(s, hhmm) {
+  const d = parseDate(s);
+  const [h, m] = hhmm.split(':').map(Number);
+  d.setHours(h, m, 0, 0);
+  return d.getTime();
+}
+
+// "2h 5m" style time left.
+export function fmtLeft(ms) {
+  const m = Math.max(1, Math.ceil(ms / 60000));
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  if (d) return `${d}d ${h}h`;
+  return h ? `${h}h ${m % 60}m` : `${m}m`;
+}

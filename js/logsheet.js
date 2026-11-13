@@ -1,7 +1,8 @@
 // The "log an activity" sheet: pick what you did, fill a short form, earn XP.
 import { html, useState } from '../vendor/preact-htm.js';
+import { fmtMoney } from './util.js';
 import { KINDS, logXP } from './game.js';
-import { BEDTIME_CUTOFF, RECOVERY_SLEEP_HOURS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER } from './rpgMath.js';
+import { BEDTIME_CUTOFF, CRIT_MULTIPLIER, RECOVERY_SLEEP_HOURS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER, goldFromLog, isCrit } from './rpgMath.js';
 import { put, remove } from './store.js';
 import { feedback, play } from './fx.js';
 import { Sheet, useApp } from './components.js';
@@ -115,9 +116,14 @@ export function LogSheet({ initial, onClose }) {
     const out = { type: 'log', kind, skill: skill?.id ?? skillId, date: v.date || todayStr(), createdAt: rec?.createdAt ?? Date.now() };
     if (rec) out.id = rec.id;
     for (const k of FIELDS[kind]) if (v[k] !== '' && v[k] != null && v[k] !== false) out[k] = v[k];
-    put(out);
-    if (!rec) feedback(preview > 0 ? 'log' : 'tick');
-    ctx.toast(rec ? 'Saved' : preview > 0 ? `+${preview} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}` : `${KINDS[kind].icon} ${label} logged`);
+    const saved = put(out);
+    // 1 in 10 logs is a critical hit: double XP and Gold, revealed the moment you save.
+    const crit = !rec && isCrit(saved.id) && (logXP(saved) > 0 || goldFromLog(saved) > 0);
+    if (crit) ctx.crit();
+    else if (!rec) feedback(preview > 0 ? 'log' : 'tick');
+    ctx.toast(rec ? 'Saved'
+      : crit ? `⚡ CRITICAL HIT! +${preview * CRIT_MULTIPLIER} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}`
+      : preview > 0 ? `+${preview} XP · ${skill?.icon ?? ''} ${skill?.name ?? ''}` : `${KINDS[kind].icon} ${label} logged`);
     onClose();
   }
 
@@ -221,7 +227,7 @@ function PaymentFields({ f, set, onClose }) {
     <label class="field"><span>Which debt?</span>
       <select value=${f.debtId} onChange=${e => set('debtId', e.target.value)}>
         <option value="" disabled>Choose a debt</option>
-        ${open.map(b => html`<option value=${b.id}>${b.name} (${'$' + b.remaining.toLocaleString()} left)</option>`)}
+        ${open.map(b => html`<option value=${b.id}>${b.name} (${fmtMoney(b.remaining)} left)</option>`)}
       </select>
     </label>
     <${Num} label="Amount paid" k="amount" prefix="$" f=${f} set=${set} />`;
@@ -254,9 +260,7 @@ function QuickNum({ label, k, options, f, set }) {
     <span>${label}</span>
     <div class="chip-row">
       ${options.map(n => html`<button type="button" class=${'chip-btn' + (f[k] === n ? ' on' : '')} onClick=${() => set(k, n)}>${n}</button>`)}
-      <input class="mini-input" type="number" inputmode="decimal" step="any" min="0" placeholder="Other" aria-label=${label}
-        value=${options.includes(f[k]) ? '' : f[k] ?? ''}
-        onInput=${e => set(k, e.target.value === '' ? '' : Number(e.target.value))} />
+      <${NumInput} class="mini-input" placeholder="Other" label=${label} value=${options.includes(f[k]) ? '' : f[k] ?? ''} onChange=${v => set(k, v)} />
     </div>
   </div>`;
 }
@@ -266,19 +270,35 @@ function Minutes({ f, set }) {
     <span>Minutes</span>
     <div class="chip-row">
       ${[15, 30, 45, 60, 90].map(m => html`<button type="button" class=${'chip-btn' + (f.minutes === m ? ' on' : '')} onClick=${() => set('minutes', m)}>${m}</button>`)}
-      <input class="mini-input" type="number" inputmode="numeric" min="1" placeholder="Other" aria-label="Minutes"
-        value=${[15, 30, 45, 60, 90].includes(f.minutes) ? '' : f.minutes ?? ''}
-        onInput=${e => set('minutes', e.target.value === '' ? '' : Number(e.target.value))} />
+      <${NumInput} class="mini-input" placeholder="Other" label="Minutes" places=${0} value=${[15, 30, 45, 60, 90].includes(f.minutes) ? '' : f.minutes ?? ''} onChange=${v => set('minutes', v)} />
     </div>
   </div>`;
 }
 
-export function Num({ label, k, f, set, prefix, suffix, placeholder }) {
+// A number box you can type decimals into (2 places by default). It keeps exactly what you typed on
+// screen, so "12." isn't wiped out while the form stores the number 12.
+export function NumInput({ value, onChange, class: cls, placeholder, label, places = 2 }) {
+  const [draft, setDraft] = useState(null);
+  const text = value === '' || value == null ? '' : String(value);
+  const shown = draft && draft.value === value ? draft.text : text;
+  function onInput(e) {
+    let s = e.target.value.replace(/[^\d.]/g, '');
+    const [whole, ...rest] = s.split('.');
+    s = rest.length && places > 0 ? `${whole}.${rest.join('').slice(0, places)}` : whole;
+    if (e.target.value !== s) e.target.value = s;
+    const v = s === '' || s === '.' ? '' : Number(s);
+    setDraft({ text: s, value: v });
+    onChange(v);
+  }
+  return html`<input class=${cls ?? ''} type="text" inputmode=${places > 0 ? 'decimal' : 'numeric'} autocomplete="off"
+    placeholder=${placeholder ?? ''} aria-label=${label} value=${shown} onInput=${onInput} />`;
+}
+
+export function Num({ label, k, f, set, prefix, suffix, placeholder, places }) {
   return html`<label class="field"><span>${label}</span>
     <div class="input-wrap">
       ${prefix && html`<em>${prefix}</em>`}
-      <input type="number" inputmode="decimal" step="any" min="0" placeholder=${placeholder ?? ''} value=${f[k] ?? ''}
-        onInput=${e => set(k, e.target.value === '' ? '' : Number(e.target.value))} />
+      <${NumInput} value=${f[k] ?? ''} onChange=${v => set(k, v)} placeholder=${placeholder} places=${places} />
       ${suffix && html`<em>${suffix}</em>`}
     </div>
   </label>`;

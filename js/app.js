@@ -8,7 +8,7 @@ import { THEMES, applyTheme, getThemePref, resolveTheme, setThemePref } from './
 import { Ambush } from './ambush.js';
 import { CareerPage } from './skilltree.js';
 import { Shop } from './shop.js';
-import { GoalsPage } from './goalspage.js';
+import { GoalsPage, rankByInterest } from './goalspage.js';
 import { OPERATION_XP, PRIME_BONUS_XP, TARGET_XP } from './rpgMath.js';
 import { LogSheet } from './logsheet.js';
 import { Home, SkillPage, SkillsPage, Stats } from './pages.js';
@@ -26,6 +26,13 @@ function snapshot() {
     ambushes: all('ambush'),
     goals: all('goal').sort((a, b) => a.createdAt - b.createdAt),
     targets: all('target'),
+    weekly: all('weekly').sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    wprog: all('wprog'),
+    wdone: all('wdone'),
+    mains: all('main'),
+    bounties: all('bounty').sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    bticks: all('btick'),
+    preps: all('prep'),
     career: get('career') ?? {},
     settings: get('settings') ?? {},
   };
@@ -193,16 +200,32 @@ function App() {
   });
   const [levelUp, setLevelUp] = useState(null);
   const [opDone, setOpDone] = useState(null);
+
+  // A critical hit: flash the gold banner with its own sound and a heavy haptic.
+  const [critFx, setCritFx] = useState(0);
+  const crit = useCallback(() => {
+    setCritFx(Date.now());
+    fx.feedback('crit', 'heavy');
+    setTimeout(() => setCritFx(0), 1900);
+  }, []);
+
+  // Hit lists made before interest ranking existed get ranked by interest once.
+  useEffect(() => {
+    for (const op of game.goals) {
+      if (op.rec.rankBy == null && op.active.some(t => t.kind === 'debt')) rankByInterest(op);
+    }
+  }, [game.goals]);
   const [help, setHelp] = useState(false);
   useShortcuts(() => setLogSheet({}), () => setHelp(h => !h));
 
   // Time-responsive theme: follows the clock on Auto, announced when it changes on its own.
   const [themePref, setThemePrefState] = useState(getThemePref);
-  const theme = resolveTheme(themePref, new Date(game.now));
+  // Overdrive takes over the look for as long as it lasts.
+  const theme = game.overdrive ? 'overdrive' : resolveTheme(themePref, new Date(game.now));
   const lastTheme = useRef(theme);
   useEffect(() => {
     applyTheme(theme);
-    if (lastTheme.current !== theme && themePref === 'auto') {
+    if (lastTheme.current !== theme && themePref === 'auto' && THEMES[theme] && THEMES[lastTheme.current]) {
       toast(`${THEMES[theme].icon} ${THEMES[theme].name} mode`);
       fx.play('shift');
     }
@@ -230,12 +253,18 @@ function App() {
       cleared: new Set(game.goals.flatMap(op => op.cleared.map(t => t.id))),
       opsDone: new Set(game.goals.filter(op => op.complete).map(op => op.id)),
       dungeon: Object.fromEntries(game.dungeonToday.map(q => [q.id, q.status])),
+      overdrive: !!game.overdrive,
     };
     const p = prev.current;
     prev.current = snap;
     if (!p || p.today !== today) return;
     // Only the biggest moment gets a sound, so effects don't pile on top of each other.
     const moments = [];
+    if (snap.overdrive && !p.overdrive) {
+      toast('⚡ SANDEVISTAN OVERDRIVE · 2× XP until midnight');
+      celebrate();
+      moments.push(['overdrive', 'heavy', 7]);
+    }
     for (const q of game.dungeonToday) {
       if (p.dungeon[q.id] === q.status) continue;
       if (q.status === 'complete') {
@@ -286,7 +315,7 @@ function App() {
   }, [game]);
 
   const ctx = {
-    data, game, skills, skillMap, toast, themePref,
+    data, game, skills, skillMap, toast, themePref, crit,
     openLog: opts => setLogSheet(opts ?? {}),
     setThemePref: pref => {
       setThemePref(pref);
@@ -327,6 +356,9 @@ function App() {
     </div>
     ${logSheet && html`<${LogSheet} initial=${logSheet} onClose=${() => setLogSheet(null)} />`}
     <${Ambush} />
+    ${critFx > 0 && html`<div class="crit-fx" key=${critFx} role="status">
+      <div class="crit-banner">⚡ CRITICAL HIT<small>2× XP & GOLD</small></div>
+    </div>`}
     ${help && html`<${ShortcutHelp} onClose=${() => setHelp(false)} />`}
     ${opDone && html`<div class="levelup" onClick=${() => setOpDone(null)}>
       <div class="levelup-card granted">
