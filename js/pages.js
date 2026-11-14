@@ -47,7 +47,7 @@ export function Home() {
 }
 
 // One-tap logging for the things you log most.
-const QUICK = [['shift', 'Shift'], ['study', 'Study'], ['workout', 'Workout'], ['meal', 'Meal'], ['sleep', 'Sleep']];
+const QUICK = [['shift', 'Shift'], ['study', 'Study'], ['workout', 'Workout'], ['macros', 'Macros'], ['sleep', 'Sleep']];
 
 function QuickLog() {
   const { openLog } = useApp();
@@ -358,7 +358,7 @@ export function Stats() {
       </div>
     <//>
     <${Card} title="🧠 Stress log">
-      <p class="muted small">In bed after 9:00 PM: +25. A 7th straight day without a rest day (no workout or gig shift): +20. Good sleep: −15. Rest day: −20. Perfect nutrition: −10. At 100% you get Cyberpsychosis.</p>
+      <p class="muted small">In bed after 11:00 PM: +25. Under 8 hours of sleep: +15. A 7th straight day without a rest day (no workout or gig shift): +20. 8+ hours in bed by 11 PM: −15. Rest day: −20. Perfect nutrition: −10. At 100% you get Cyberpsychosis.</p>
       ${game.stressLog.length ? html`<div class="mini-table">${game.stressLog.map(e => html`<div class="mini-row">
         <span>${e.result ? html`<b>${e.result}</b> · ` : ''}${e.reason}</span>
         <span class="muted tiny">${new Date(e.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>

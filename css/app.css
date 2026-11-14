@@ -981,3 +981,14 @@ kbd { font-family: var(--mono); font-size: 13px; padding: 2px 8px; min-width: 28
 
 button.ambush-banner { text-align: left; cursor: pointer; }
 .ambush-text { display: flex; flex-direction: column; gap: 2px; }
+
+/* ---------- Schedule editor ---------- */
+
+.sched { display: flex; flex-direction: column; }
+.sched-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px dashed var(--line); }
+.sched-row:first-child { border-top: 0; }
+.sched-name { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.sched-line { display: flex; align-items: center; gap: 10px; }
+.sched-days { width: 64px; flex-shrink: 0; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.sched-range { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.sched-range input { min-height: 40px; padding: 0 8px; }

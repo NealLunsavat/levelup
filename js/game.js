@@ -73,6 +73,7 @@ export const titleFor = level => TITLES.filter(([min]) => level >= min).pop()[1]
 export const METRICS = {
   minutes: { label: 'minutes', of: l => l.minutes || 0 },
   count: { label: 'entries', of: () => 1 },
+  macrofactor: { label: 'MacroFactor day logged', of: l => (l.kind === 'macros' ? 1 : 0) },
   earned: { label: '$ earned', of: l => (l.kind === 'shift' ? l.amount : 0) },
   paid: { label: '$ paid to debt', of: l => (l.kind === 'payment' ? l.amount : 0) },
   protein: { label: 'g protein', of: l => l.protein || 0 },
@@ -96,7 +97,7 @@ export const prepId = date => `prep-${date}`;
 export function buildGame(data, today = todayStr(), now = Date.now()) {
   const {
     logs, quests, debts, loot, ambushes, career, settings, skills,
-    goals = [], targets = [], weekly = [], wprog = [], wdone = [], mains = [], bounties = [], bticks = [], preps = [],
+    goals = [], targets = [], schedule = [], weekly = [], wprog = [], wdone = [], mains = [], bounties = [], bticks = [], preps = [],
   } = data;
   const byDate = groupBy(logs, l => l.date);
   const dayAt = date => Math.max(0, ...(byDate[date] || []).map(l => l.createdAt));
@@ -107,9 +108,9 @@ export function buildGame(data, today = todayStr(), now = Date.now()) {
   const prepByDate = Object.fromEntries(preps.map(p => [p.date, p]));
   const dungeonDays = {};
   for (let d = todayStr(new Date(DUNGEON_START)); d <= today; d = addDays(d, 1)) {
-    dungeonDays[d] = dungeonFor(d).map(q => evaluateQuest(q, byDate[d] || [], now, prepByDate[d]));
+    dungeonDays[d] = dungeonFor(d, schedule).map(q => evaluateQuest(q, byDate[d] || [], now, prepByDate[d]));
   }
-  const dungeonToday = dungeonDays[today] ?? dungeonFor(today).map(q => evaluateQuest(q, byDate[today] || [], now, prepByDate[today]));
+  const dungeonToday = dungeonDays[today] ?? dungeonFor(today, schedule).map(q => evaluateQuest(q, byDate[today] || [], now, prepByDate[today]));
   const questOn = (date, id) => dungeonDays[date]?.find(q => q.id === id);
 
   // 2. Stress and Cyberpsychosis.

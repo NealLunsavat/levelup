@@ -5,7 +5,7 @@
 import {
   BEDTIME_CUTOFF, DUNGEON_START, GOOD_SLEEP_HOURS, MACRO_TOLERANCE, MAX_GRIND_DAYS, MAX_STRESS,
   RECOVERY_SLEEP_HOURS, REST_DAY_BREAKERS, SHOP_LOCK_HOURS, STRESS_GOOD_SLEEP, STRESS_LATE_BEDTIME,
-  STRESS_NO_REST_DAY, STRESS_PERFECT_NUTRITION, STRESS_REST_DAY,
+  STRESS_NO_REST_DAY, STRESS_PERFECT_NUTRITION, STRESS_REST_DAY, STRESS_SHORT_SLEEP,
 } from './rpgMath.js';
 import { addDays, parseDate, sum, todayStr } from './util.js';
 
@@ -48,8 +48,8 @@ export function computeBurnout(logs, byDate, settings, today, now) {
     const hours = Number(l.hours) || 0;
     const cures = hours >= RECOVERY_SLEEP_HOURS && `${hours}h of sleep`;
     if (isLateBedtime(l.bedtime)) events.push({ at: l.createdAt, delta: STRESS_LATE_BEDTIME, cures, reason: `In bed at ${l.bedtime}, past the cutoff` });
-    else if (hours >= GOOD_SLEEP_HOURS) events.push({ at: l.createdAt, delta: STRESS_GOOD_SLEEP, cures, reason: `${hours}h of sleep, in bed on time` });
-    else if (cures) events.push({ at: l.createdAt, delta: 0, cures, reason: `${hours}h of sleep` });
+    else if (hours >= GOOD_SLEEP_HOURS) events.push({ at: l.createdAt, delta: STRESS_GOOD_SLEEP, cures, reason: `${hours}h of sleep, in bed by 11 PM` });
+    else events.push({ at: l.createdAt, delta: STRESS_SHORT_SLEEP, cures, reason: `Only ${hours}h of sleep` });
   }
 
   let run = 0;

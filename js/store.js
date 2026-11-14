@@ -12,7 +12,7 @@ const DEFAULTS = [
   { id: 'q-study', type: 'quest', order: 1, title: 'Study NASM for 30 min', skill: 'study', metric: 'minutes', target: 30, days: ALL_DAYS },
   { id: 'q-gym', type: 'quest', order: 2, title: 'Hit the gym', skill: 'gym', metric: 'count', target: 1, days: [1, 2, 3, 4, 5] },
   { id: 'q-art', type: 'quest', order: 3, title: 'Draw for 20 min', skill: 'art', metric: 'minutes', target: 20, days: ALL_DAYS },
-  { id: 'q-food', type: 'quest', order: 4, title: 'Log 3 meals', skill: 'food', metric: 'count', target: 3, days: ALL_DAYS },
+  { id: 'q-food', type: 'quest', order: 4, title: 'Log your MacroFactor day', skill: 'food', metric: 'macrofactor', target: 1, days: ALL_DAYS },
   { id: 'q-earn', type: 'quest', order: 5, title: 'Earn $100 driving', skill: 'finance', metric: 'earned', target: 100, days: [5, 6, 0] },
 
   // Weekly quests. `track` is 'manual' (tap to count) or a metric from weekly.js that fills in from your logs.
@@ -51,6 +51,15 @@ let lastSource = 'local';
 const listeners = new Set();
 
 for (const d of DEFAULTS) if (!records[d.id]) records[d.id] = { ...d, updatedAt: 0 };
+
+// The old "Log 3 meals" quest becomes "Log your MacroFactor day" (only if you never changed it).
+const food = records['q-food'];
+if (food && !food.deleted && food.title === 'Log 3 meals' && food.metric === 'count') {
+  records['q-food'] = { ...food, ...DEFAULTS.find(d => d.id === 'q-food'), updatedAt: Date.now() };
+  dirty.add('q-food');
+  localStorage.setItem(KEY, JSON.stringify(records));
+  localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
+}
 
 function read(key, fallback) {
   try {

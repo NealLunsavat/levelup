@@ -51,10 +51,13 @@ export const DUNGEON_START = new Date('2026-11-12T17:00').getTime();
 // ---- Stress & the Cyberpsychosis debuff ----
 
 export const MAX_STRESS = 100;
-export const BEDTIME_CUTOFF = '21:00'; // in bed later than this adds stress
+// Sleep: any bedtime up to 11 PM is fine; getting 8 hours is what matters.
+export const BEDTIME_CUTOFF = '23:00'; // in bed later than this adds stress
+export const WEEKDAY_BEDTIME = '20:00'; // the target for a 4 AM wake-up (shown as guidance, not scored)
 export const STRESS_LATE_BEDTIME = 25;
-export const GOOD_SLEEP_HOURS = 7;
-export const STRESS_GOOD_SLEEP = -15; // in bed on time with 7+ hours
+export const GOOD_SLEEP_HOURS = 8;
+export const STRESS_GOOD_SLEEP = -15; // in bed by the cutoff with 8+ hours
+export const STRESS_SHORT_SLEEP = 15; // under 8 hours
 export const RECOVERY_SLEEP_HOURS = 8; // an 8-hour sleep cures Cyberpsychosis
 export const REST_DAY_BREAKERS = ['workout', 'shift']; // a day with none of these is a rest day
 export const MAX_GRIND_DAYS = 6; // the 7th day in a row without a rest day starts adding stress

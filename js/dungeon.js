@@ -70,11 +70,26 @@ const timeOn = (date, minutes) => {
   return d.getTime();
 };
 
+// Default days each quest runs, and whether it has its own Friday window to edit.
+export const questDays = q => q.days ?? DUNGEON_DAYS;
+export const hasFriday = q => questDays(q).includes(5);
+
+// Your own times live in the 'schedule' record as dated versions, so changing them never
+// re-scores days that already happened: each date uses the newest version that started on or before it.
+function windowsOn(date, versions) {
+  const v = [...versions].sort((a, b) => b.from.localeCompare(a.from)).find(v => v.from <= date);
+  return v?.windows ?? {};
+}
+
 // The quests scheduled on a date, with absolute start/end times, in time order.
-export function dungeonFor(date) {
+export function dungeonFor(date, versions = []) {
   const dow = dayOfWeek(date);
-  return DUNGEON.filter(q => (q.days ?? DUNGEON_DAYS).includes(dow)).map(q => {
-    const [start, end] = dow === 5 && q.friday ? q.friday : q.window;
+  const custom = windowsOn(date, versions);
+  return DUNGEON.filter(q => questDays(q).includes(dow)).map(q => {
+    const mine = custom[q.id] ?? {};
+    const weekday = mine.window ?? q.window;
+    const friday = mine.friday ?? q.friday ?? weekday;
+    const [start, end] = dow === 5 ? friday : weekday;
     const s = timeOn(date, toMinutes(start));
     const e = timeOn(date, toMinutes(end));
     return { ...q, date, start: s, end: e, graceEnd: e + QUEST_GRACE_MIN * 60000 };

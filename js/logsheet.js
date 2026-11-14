@@ -2,7 +2,7 @@
 import { html, useState } from '../vendor/preact-htm.js';
 import { fmtMoney } from './util.js';
 import { KINDS, logXP } from './game.js';
-import { BEDTIME_CUTOFF, CRIT_MULTIPLIER, RECOVERY_SLEEP_HOURS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER, goldFromLog, isCrit } from './rpgMath.js';
+import { BEDTIME_CUTOFF, CRIT_MULTIPLIER, GOOD_SLEEP_HOURS, WEEKDAY_BEDTIME, RECOVERY_SLEEP_HOURS, STEALTH_MIN_MINUTES, STEALTH_MULTIPLIER, goldFromLog, isCrit } from './rpgMath.js';
 import { put, remove } from './store.js';
 import { feedback, play } from './fx.js';
 import { Sheet, useApp } from './components.js';
@@ -192,7 +192,8 @@ export function LogSheet({ initial, onClose }) {
           <${Num} label="Fat" k="fat" suffix="g" ...${props} />
         </div>`}
       ${kind === 'sleep' && html`
-        <p class="muted small">In bed after ${fmt12(BEDTIME_CUTOFF)} adds stress. ${RECOVERY_SLEEP_HOURS}+ hours cures Cyberpsychosis.</p>
+        <p class="muted small">Getting ${GOOD_SLEEP_HOURS} hours is the priority. Weekdays, aim for ${fmt12(WEEKDAY_BEDTIME)} to wake at 4 AM; weekends can run later. In bed after ${fmt12(BEDTIME_CUTOFF)} or under ${GOOD_SLEEP_HOURS} hours adds stress, and ${RECOVERY_SLEEP_HOURS}+ hours cures Cyberpsychosis.</p>
+        ${v.bedtime && v.hours > 0 && html`<p class="small">⏰ Up at about <b>${wakeAt(v.bedtime, v.hours)}</b></p>`}
         <label class="field"><span>Bedtime</span><input type="time" value=${v.bedtime ?? ''} onInput=${e => set('bedtime', e.target.value)} /></label>
         <${QuickNum} label="Hours slept" k="hours" options=${[6, 7, 8, 9]} ...${props} />`}
       ${kind === 'career' && html`<p class="small">🎯 ${v.title}</p>`}
@@ -251,6 +252,13 @@ function MealFields({ f, set }) {
       <${Num} label="Calories" k="calories" suffix="kcal" f=${f} set=${set} />
       <${Num} label="Protein" k="protein" suffix="g" f=${f} set=${set} />
     </div>`;
+}
+
+// Bedtime plus hours slept, as a clock time.
+function wakeAt(bedtime, hours) {
+  const [h, m] = bedtime.split(':').map(Number);
+  const mins = Math.round((h * 60 + m + hours * 60) % 1440);
+  return fmt12(`${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`);
 }
 
 const fmt12 = hhmm => new Date(`2000-01-01T${hhmm}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

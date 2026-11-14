@@ -11,6 +11,9 @@ import { DAY_LETTERS, fmtMoney, fmtNum } from './util.js';
 import * as sync from './sync.js';
 import { feedback, fxPrefs, setFxPref } from './fx.js';
 import { THEMES, autoTheme } from './theme.js';
+import { DUNGEON, hasFriday, questDays } from './dungeon.js';
+import { get as getRecord } from './store.js';
+import { todayStr } from './util.js';
 
 const COLORS = ['#f3e600', '#00e5ff', '#ff2e88', '#2bff88', '#b45cff', '#ff6b2c', '#ffb627', '#7dd3fc'];
 
@@ -33,6 +36,7 @@ export function Settings() {
     <//>
 
     <${DeviceCard} />
+    <${ScheduleEditor} />
     <${Quests} />
     <${WeeklyEditor} />
     <${BountyEditor} />
@@ -40,6 +44,66 @@ export function Settings() {
     <${SyncCard} />
     <${Backup} />
   </div>`;
+}
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const daysLabel = days => {
+  const d = days.filter(x => x !== 5);
+  return d.every((x, i) => i === 0 || x === d[i - 1] + 1) ? `${DAY_NAMES[d[0]]}–${DAY_NAMES[d.at(-1)]}` : d.map(x => DAY_NAMES[x]).join(', ');
+};
+
+// Your own Daily Dungeon times. Saved as a new version starting today, so past days keep their old times.
+function ScheduleEditor() {
+  const { game, toast } = useApp();
+  const versions = getRecord('schedule')?.versions ?? [];
+  const current = [...versions].sort((a, b) => b.from.localeCompare(a.from)).find(v => v.from <= game.today)?.windows ?? {};
+  const initial = () => Object.fromEntries(DUNGEON.map(q => {
+    const weekday = current[q.id]?.window ?? q.window;
+    return [q.id, { window: [...weekday], friday: [...(current[q.id]?.friday ?? q.friday ?? weekday)] }];
+  }));
+  const [w, setW] = useState(initial);
+  const [error, setError] = useState('');
+  const set = (id, which, i, value) => setW(p => ({ ...p, [id]: { ...p[id], [which]: p[id][which].map((x, j) => (j === i ? value : x)) } }));
+  const dirty = JSON.stringify(w) !== JSON.stringify(initial());
+
+  function save() {
+    for (const q of DUNGEON) {
+      for (const which of hasFriday(q) ? ['window', 'friday'] : ['window']) {
+        const [s, e] = w[q.id][which];
+        if (!s || !e || e <= s) return setError(`${q.name}: the end time has to be after the start time (windows can't cross midnight).`);
+      }
+    }
+    setError('');
+    const today = todayStr();
+    put({ id: 'schedule', type: 'schedule', versions: [...versions.filter(v => v.from < today), { from: today, windows: w }] });
+    feedback('tick');
+    toast('🕒 Schedule saved. It applies from today.');
+  }
+  function reset() {
+    setW(Object.fromEntries(DUNGEON.map(q => [q.id, { window: [...q.window], friday: [...(q.friday ?? q.window)] }])));
+  }
+
+  const range = (q, which) => html`<div class="sched-range">
+    <input type="time" aria-label=${`${q.name} start`} value=${w[q.id][which][0]} onInput=${e => set(q.id, which, 0, e.target.value)} />
+    <span class="muted">to</span>
+    <input type="time" aria-label=${`${q.name} end`} value=${w[q.id][which][1]} onInput=${e => set(q.id, which, 1, e.target.value)} />
+  </div>`;
+
+  return html`<${Card} title="Daily Dungeon times">
+    <p class="muted small">Move your quest windows to fit your week. Changes start today; days that already happened keep the times they had.</p>
+    <div class="sched">
+      ${DUNGEON.map(q => html`<div class="sched-row">
+        <div class="sched-name">${q.icon} ${q.name}</div>
+        <div class="sched-line"><span class="sched-days">${daysLabel(questDays(q))}</span>${range(q, 'window')}</div>
+        ${hasFriday(q) && html`<div class="sched-line"><span class="sched-days">Fri</span>${range(q, 'friday')}</div>`}
+      </div>`)}
+    </div>
+    ${error && html`<p class="error">${error}</p>`}
+    <div class="form-actions">
+      <button class="btn ghost small" onClick=${reset}>Restore defaults</button>
+      <button class="btn primary grow" disabled=${!dirty} onClick=${save}>Save schedule</button>
+    </div>
+  <//>`;
 }
 
 // Look and feel for this device only (not synced).

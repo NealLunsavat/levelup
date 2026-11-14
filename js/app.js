@@ -33,6 +33,7 @@ function snapshot() {
     bounties: all('bounty').sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     bticks: all('btick'),
     preps: all('prep'),
+    schedule: get('schedule')?.versions ?? [],
     career: get('career') ?? {},
     settings: get('settings') ?? {},
   };

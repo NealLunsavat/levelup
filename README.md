@@ -36,7 +36,7 @@ Each quest only counts if you log it **during its window** (or up to 60 minutes 
 - **Fridays**: IT Headquarters moves to 9:00 AM–2:00 PM and the Hustle Wastes to 2:30–7:00 PM.
 - **Stealth Mission**: during the IT shift, log NASM study with the 🥷 toggle on. Once you've logged 2 hours in that shift, all of it earns **1.5× INT**.
 - Every quest cleared heals **+5 HP**. HP never goes above 100.
-- Schedules, rewards and penalties live in `js/dungeon.js`.
+- **Change the times** in Settings → Daily Dungeon times (Mon–Thu and Friday separately). New times apply from that day on; past days keep the times they had. Default times, rewards and penalties live in `js/dungeon.js`.
 
 ## Quests by the day and the week
 
@@ -90,9 +90,10 @@ Each final goal is an **operation**. You break it into **targets** (sub-goals) a
 
 | Event | Stress |
 |---|---|
-| Sleep logged with a bedtime after 9:00 PM | +25 |
+| Sleep logged with a bedtime after 11:00 PM | +25 |
+| Under 8 hours of sleep | +15 |
 | 7th+ day in a row without a rest day (a rest day = no workout and no gig shift) | +20 per day |
-| In bed by 9:00 PM with 7+ hours of sleep | −15 |
+| 8+ hours of sleep, in bed by 11:00 PM | −15 |
 | A rest day | −20 |
 | A perfect nutrition day | −10 |
 
